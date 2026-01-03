@@ -122,17 +122,14 @@ async def generate_daily_prompt(
                 "role": "user",
                 "content": f"""It's time to post today's daily drawing prompt! The theme is: {theme}.
 
-Come up with a SHORT, simple prompt that's FUN to draw — something that makes artists go "ooh, I wanna draw that." Examples:
-- "Snorlax as an ice cream"
-- "Hori from Horimiya"
-- "sunset at a ramen shop"
-- "Pikachu in a hoodie"
-- "two rivals sharing an umbrella"
-- "a sword that's too big"
-- "a mage who's bad at magic"
-- "Link"
+Come up with a SHORT, simple prompt that's FUN to draw. Stick to one of these categories:
 
-Mix it up — sometimes a specific character, sometimes a scene or vibe, sometimes just a name. Keep it simple, appealing, and open to interpretation. Think: what would be satisfying to sketch?
+1. A REAL character from anime/games/manga (most common): "Link", "Tifa", "Hori from Horimiya", "Gojo", "2B"
+2. A character + simple twist: "Pikachu in a hoodie", "Snorlax as an ice cream", "chibi Sephiroth"
+3. A cozy scene or vibe: "sunset at a ramen shop", "rainy convenience store at night"
+4. A simple concept: "two rivals sharing an umbrella", "a sword that's too big"
+
+AVOID random/weird combinations like "tsundere android" or "villain in pajamas" — these feel like AI slop. Lean toward real characters people actually want to draw. When in doubt, just pick a beloved character.
 
 Present it with a short message in YOUR voice — dry, slightly teasing, maybe a little sarcastic. Something like:
 - "today's prompt: 'a tired swordsman.' ...no, drawing me doesn't count."
