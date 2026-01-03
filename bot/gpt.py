@@ -110,17 +110,20 @@ async def generate_daily_prompt(
         convo_list = "\n".join(f"- {m.get('username', 'Someone')}: {m['content']}" for m in recent_messages)
         conversation_context = f"\n\nRecent conversations (feel free to reference or play off these):\n{convo_list}"
     
+    # Simpler system prompt for prompt generation (no tools mentioned)
+    prompt_system = """You are Mai Sakurajima, running an art Discord server. Your voice is dry, deadpan, slightly teasing. You're cool and composed—no excessive enthusiasm or exclamation points. Just generate the prompt and a short message. No tool calls, no extra output—just the JSON."""
+    
     # Call OpenAI - wrapped client auto-traces when Langfuse is enabled
     response = await client.chat.completions.create(
         model=MODEL,
         messages=[
             {
                 "role": "system",
-                "content": CHARACTER
+                "content": prompt_system
             },
             {
                 "role": "user",
-                "content": f"""It's time to post today's daily drawing prompt! The theme is: {theme}.
+                "content": f"""Generate today's daily drawing prompt. Theme: {theme}.
 
 Come up with a SHORT, simple prompt that's FUN to draw. Stick to one of these categories:
 
