@@ -33,16 +33,15 @@ load_dotenv()
 # Check if Langfuse is configured (optional - works without it)
 _langfuse_enabled = bool(os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"))
 
+# Always use the standard OpenAI client (wrapped client has serialization issues)
+from openai import AsyncOpenAI
+
 if _langfuse_enabled:
     try:
-        # Use Langfuse's wrapped AsyncOpenAI client for automatic tracing
-        # This captures all API calls, tokens, latency, and costs
-        from langfuse.openai import AsyncOpenAI
         from langfuse import observe, langfuse_context  # v3 API
         print("🔍 Langfuse observability enabled")
     except ImportError as e:
         print(f"⚠️ Langfuse import failed: {e}")
-        from openai import AsyncOpenAI
         def observe(*args, **kwargs):
             def decorator(func):
                 return func
@@ -50,8 +49,6 @@ if _langfuse_enabled:
         langfuse_context = None
         _langfuse_enabled = False
 else:
-    # Fall back to regular OpenAI client if Langfuse isn't configured
-    from openai import AsyncOpenAI
     # Create no-op decorator for when Langfuse is disabled
     def observe(*args, **kwargs):
         def decorator(func):
