@@ -37,7 +37,7 @@ _langfuse_enabled = bool(os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUS
 if _langfuse_enabled:
     try:
         from langfuse.openai import AsyncOpenAI  # Wrapped client for auto-tracing
-        from langfuse import observe  # v3 API
+        from langfuse import observe, get_client, propagate_attributes  # v3 API
         print("🔍 Langfuse observability enabled (wrapped client)")
     except ImportError as e:
         print(f"⚠️ Langfuse import failed: {e}")
@@ -46,6 +46,8 @@ if _langfuse_enabled:
             def decorator(func):
                 return func
             return decorator
+        get_client = None
+        propagate_attributes = None
         _langfuse_enabled = False
 else:
     # Fall back to regular OpenAI client if Langfuse isn't configured
@@ -54,6 +56,8 @@ else:
         def decorator(func):
             return func
         return decorator
+    get_client = None
+    propagate_attributes = None
     print("📊 Langfuse not configured - observability disabled")
 
 # Create the async OpenAI client
@@ -112,16 +116,18 @@ async def generate_daily_prompt(
         convo_list = "\n".join(f"- {m.get('username', 'Someone')}: {m['content']}" for m in recent_messages)
         conversation_context = f"\n\nRecent conversations (feel free to reference or play off these):\n{convo_list}"
     
-    response = await client.chat.completions.create(
-        model=MODEL,
-        messages=[
-            {
-                "role": "system",
-                "content": CHARACTER
-            },
-            {
-                "role": "user",
-                "content": f"""It's time to post today's daily drawing prompt! The theme is: {theme}.
+    # Use propagate_attributes to pass session to all child observations (best practice)
+    async def _call_openai():
+        return await client.chat.completions.create(
+            model=MODEL,
+            messages=[
+                {
+                    "role": "system",
+                    "content": CHARACTER
+                },
+                {
+                    "role": "user",
+                    "content": f"""It's time to post today's daily drawing prompt! The theme is: {theme}.
 
 Come up with a SHORT, simple prompt — just a fun concept in a few words. Examples:
 - "Snorlax as an ice cream"
@@ -143,19 +149,23 @@ Respond with JSON in this exact format:
     "prompt": "The short, simple prompt",
     "message": "Your brief message including the prompt"
 }}"""
-            }
-        ],
-        response_format={"type": "json_object"},
-        max_completion_tokens=MAX_PROMPT_TOKENS,
-        # Langfuse tracking (parsed by wrapped client)
-        name="generate_daily_prompt",
-        metadata={
-            "langfuse_session_id": session_id,
-            "type": "daily_prompt",
-            "theme": theme,
-            "recent_prompts_count": len(recent_prompts) if recent_prompts else 0,
-        }
-    )
+                }
+            ],
+            response_format={"type": "json_object"},
+            max_completion_tokens=MAX_PROMPT_TOKENS,
+            name="llm-generate-prompt",
+            metadata={"type": "daily_prompt", "theme": theme}
+        )
+    
+    # Propagate session_id to all child observations (including the OpenAI generation)
+    if _langfuse_enabled and propagate_attributes:
+        with propagate_attributes(
+            session_id=session_id,
+            metadata={"server_id": server_id, "theme": theme}
+        ):
+            response = await _call_openai()
+    else:
+        response = await _call_openai()
     
     # Parse the JSON response
     content = response.choices[0].message.content.strip()
@@ -310,23 +320,30 @@ Current settings:
             })
     
     # ----- CALL GPT (with tools so Mai can chain calls) -----
-    response = await client.chat.completions.create(
-        model=MODEL,
-        messages=messages,
-        tools=[{"type": "function", "function": f} for f in FUNCTIONS],
-        tool_choice="auto",
-        max_completion_tokens=MAX_CHAT_TOKENS,
-        # Langfuse tracking (parsed by wrapped client)
-        name="chat_with_mai",
-        metadata={
-            "langfuse_user_id": username,
-            "langfuse_session_id": session_id,
-            "server_id": server_id,
-            "channel_id": channel_id,
-            "has_images": bool(image_urls),
-            "is_function_followup": bool(function_result),
-        }
-    )
+    async def _call_openai():
+        return await client.chat.completions.create(
+            model=MODEL,
+            messages=messages,
+            tools=[{"type": "function", "function": f} for f in FUNCTIONS],
+            tool_choice="auto",
+            max_completion_tokens=MAX_CHAT_TOKENS,
+            name="llm-chat",
+            metadata={
+                "has_images": bool(image_urls),
+                "is_function_followup": bool(function_result),
+            }
+        )
+    
+    # Propagate user_id and session_id to all child observations (including the OpenAI generation)
+    if _langfuse_enabled and propagate_attributes:
+        with propagate_attributes(
+            user_id=username,
+            session_id=session_id,
+            metadata={"server_id": server_id, "channel_id": channel_id}
+        ):
+            response = await _call_openai()
+    else:
+        response = await _call_openai()
     
     message = response.choices[0].message
     
