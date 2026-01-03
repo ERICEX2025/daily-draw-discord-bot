@@ -11,6 +11,44 @@ from typing import Optional
 from ddgs import DDGS
 
 
+async def optimize_search_query(prompt: str) -> str:
+    """
+    Use GPT to generate an optimized image search query for a drawing prompt.
+    
+    This helps find better reference images by adding context like
+    the source anime/game, "character reference", etc.
+    """
+    import os
+    from openai import AsyncOpenAI
+    
+    try:
+        client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        
+        response = await client.chat.completions.create(
+            model="gpt-4o-mini",  # Fast and cheap for this simple task
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You generate optimized image search queries. Given a drawing prompt, output a search query that will find good anime/game character reference images. Add the source (anime/game name) if you know it. Keep it short (3-6 words). Output ONLY the search query, nothing else."
+                },
+                {
+                    "role": "user", 
+                    "content": f"Drawing prompt: {prompt}"
+                }
+            ],
+            max_completion_tokens=30,
+        )
+        
+        optimized = response.choices[0].message.content.strip().strip('"')
+        print(f"🔍 Search query: '{prompt}' → '{optimized}'")
+        return optimized
+        
+    except Exception as e:
+        print(f"⚠️ Query optimization failed: {e}")
+        # Fallback to simple query
+        return f"{prompt} anime fanart"
+
+
 async def search_reference_images(query: str, max_results: int = 3) -> list[str]:
     """
     Search for reference images using DuckDuckGo.
@@ -23,8 +61,8 @@ async def search_reference_images(query: str, max_results: int = 3) -> list[str]
         List of image URLs
     """
     try:
-        # Add "anime fanart" to get better reference images for artists
-        search_query = f"{query} anime fanart"
+        # Have GPT optimize the search query for better results
+        search_query = await optimize_search_query(query)
         
         # Run the sync DuckDuckGo search in a thread pool
         def do_search():
