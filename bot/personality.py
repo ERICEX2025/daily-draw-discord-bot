@@ -26,6 +26,7 @@ class Function(str, Enum):
     PAUSE_SCHEDULE = "pause_schedule"
     RESUME_SCHEDULE = "resume_schedule"
     GET_HISTORY = "get_history"
+    REROLL_PROMPT = "reroll_prompt"
     SAVE_MEMORY = "save_memory"
     RECALL_MEMORIES = "recall_memories"
     SEARCH_IMAGES = "search_images"
@@ -191,6 +192,15 @@ FUNCTIONS = [
                     "description": "How many past prompts to retrieve. Default is 7."
                 }
             },
+            "required": []
+        }
+    },
+    {
+        "name": Function.REROLL_PROMPT,
+        "description": "Generate a new daily prompt, replacing today's prompt. Use when users ask to reroll, get a different prompt, or don't like today's prompt.",
+        "parameters": {
+            "type": "object",
+            "properties": {},
             "required": []
         }
     },

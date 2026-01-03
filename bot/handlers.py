@@ -147,6 +147,33 @@ async def handle_get_history(server_id: str, args: dict, **_) -> str:
     return f"Recent prompts:\n{history_text}"
 
 
+async def handle_reroll_prompt(server_id: str, **_) -> str:
+    """
+    Reroll today's daily prompt.
+    
+    Deletes the current prompt for today (if any) and generates a new one
+    by calling the existing post_daily_prompt function.
+    """
+    # Get server settings to check channel and timezone
+    settings = await db.get_settings(server_id)
+    server_tz = settings.get("timezone", "America/New_York")
+    channel_id = settings.get("channel_id")
+    
+    if not channel_id:
+        return "No channel configured for daily prompts. Set one first."
+    
+    # Delete today's prompt so post_daily_prompt won't skip
+    deleted = await db.delete_todays_prompt(server_id, server_tz)
+    
+    # Reuse the existing scheduler function
+    await scheduler.post_daily_prompt(server_id)
+    
+    if deleted:
+        return "Replaced today's prompt with a new one."
+    else:
+        return "Posted a new prompt."
+
+
 async def handle_pause_schedule(server_id: str, args: dict, **_) -> str:
     """
     Pause daily prompts for a specified number of days.
@@ -314,6 +341,7 @@ HANDLERS = {
     Function.PAUSE_SCHEDULE: handle_pause_schedule,
     Function.RESUME_SCHEDULE: handle_resume_schedule,
     Function.GET_HISTORY: handle_get_history,
+    Function.REROLL_PROMPT: handle_reroll_prompt,
     Function.SAVE_MEMORY: handle_save_memory,
     Function.RECALL_MEMORIES: handle_recall_memories,
     Function.SEARCH_IMAGES: handle_search_images,

@@ -115,7 +115,7 @@ async def get_todays_prompt(server_id: str, timezone: str = "America/New_York") 
     today = datetime.now(tz).date().isoformat()
     
     result = supabase.table("prompts") \
-        .select("prompt_text, created_at") \
+        .select("id, prompt_text, created_at") \
         .eq("server_id", server_id) \
         .gte("created_at", today) \
         .order("created_at", desc=True) \
@@ -123,6 +123,20 @@ async def get_todays_prompt(server_id: str, timezone: str = "America/New_York") 
         .execute()
     
     return result.data[0] if result.data else None
+
+
+async def delete_todays_prompt(server_id: str, timezone: str = "America/New_York") -> bool:
+    """
+    Delete today's prompt to allow a reroll.
+    
+    Returns True if a prompt was deleted, False if there was nothing to delete.
+    """
+    prompt = await get_todays_prompt(server_id, timezone)
+    if not prompt:
+        return False
+    
+    supabase.table("prompts").delete().eq("id", prompt["id"]).execute()
+    return True
 
 
 # =============================================================================
