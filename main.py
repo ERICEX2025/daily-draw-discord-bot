@@ -318,22 +318,21 @@ async def _handle_mention(message: discord.Message):
         
         if pending_images:
             for img_data in pending_images:
-                query = img_data.get("query", "Reference")
                 urls = img_data.get("urls", [])
                 
                 if urls:
-                    embeds = []
+                    # Download images and send as attachments (displays side-by-side)
+                    files = []
                     for i, url in enumerate(urls):
-                        embed = discord.Embed()
-                        embed.set_image(url=url)
-                        if i == 0:
-                            embed.title = f"🔍 {query}"
-                        embeds.append(embed)
+                        file = await utils.download_image_as_file(url, f"reference_{i}.jpg")
+                        if file:
+                            files.append(file)
                     
-                    try:
-                        await message.channel.send(embeds=embeds)
-                    except Exception as e:
-                        print(f"Failed to send image embeds: {e}")
+                    if files:
+                        try:
+                            await message.channel.send(files=files)
+                        except Exception as e:
+                            print(f"Failed to send image attachments: {e}")
 
 
 # =============================================================================

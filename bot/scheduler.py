@@ -250,15 +250,21 @@ async def post_daily_prompt(server_id: str):
             if b64:
                 base64_images.append(b64)
         
-        # Send to Discord
-        await channel.send(mai_message)
-        
-        # Send reference images as embeds (plain URLs don't auto-embed)
+        # Send to Discord with reference images as attachments (displays in grid)
         if reference_urls:
-            for url in reference_urls:
-                embed = discord.Embed(color=0xE91E63)
-                embed.set_image(url=url)
-                await channel.send(embed=embed)
+            from bot.utils import download_image_as_file
+            files = []
+            for i, url in enumerate(reference_urls):
+                file = await download_image_as_file(url, f"reference_{i}.jpg")
+                if file:
+                    files.append(file)
+            
+            if files:
+                await channel.send(mai_message, files=files)
+            else:
+                await channel.send(mai_message)
+        else:
+            await channel.send(mai_message)
         
         # Add to short-term memory with actual images so Mai can see them
         add_to_history(

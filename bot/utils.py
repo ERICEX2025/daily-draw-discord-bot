@@ -114,3 +114,33 @@ async def download_image_as_base64(url: str) -> Optional[str]:
     
     return None
 
+
+async def download_image_as_file(url: str, filename: str = "image.jpg"):
+    """
+    Download an image from a URL and return it as a discord.File.
+    
+    This allows sending images as attachments which Discord displays
+    in a grid/side-by-side rather than stacked vertically like embeds.
+    
+    Args:
+        url: The image URL to download
+        filename: The filename to use for the attachment
+        
+    Returns:
+        A discord.File object, or None if download failed
+    """
+    import discord
+    from io import BytesIO
+    
+    try:
+        async with httpx.AsyncClient() as http_client:
+            response = await http_client.get(url, timeout=10.0)
+            
+            if response.status_code == 200:
+                return discord.File(BytesIO(response.content), filename=filename)
+                
+    except Exception as e:
+        print(f"Error downloading image as file: {e}")
+    
+    return None
+
