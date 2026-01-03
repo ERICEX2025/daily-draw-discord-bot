@@ -244,7 +244,7 @@ FUNCTIONS = [
     # --- Search ---
     {
         "name": Function.SEARCH_IMAGES,
-        "description": "Search for reference images of characters, objects, or art styles. Use when someone asks what something looks like or needs visual references.",
+        "description": "Search for reference images of characters, objects, or art styles. Images will be sent as embeds automatically—do NOT include URLs in your response text.",
         "parameters": {
             "type": "object",
             "properties": {

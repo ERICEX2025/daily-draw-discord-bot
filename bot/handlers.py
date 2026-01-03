@@ -276,8 +276,9 @@ async def handle_search_images(server_id: str, args: dict, settings: dict, messa
         return {"message": f"No images found for '{query}'"}
     
     # Return images with special flag - main.py will send them after Mai's text
+    # Don't include URLs here so GPT won't repeat them in response
     return {
-        "message": f"Found {len(urls)} reference images for '{query}'. They will appear after your response.",
+        "message": f"Found {len(urls)} images for '{query}'. They will be shown as embeds after your message—don't include URLs.",
         "_pending_images": {"query": query, "urls": urls}
     }
 
