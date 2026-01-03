@@ -45,8 +45,7 @@ async def optimize_search_query(prompt: str) -> str:
         
     except Exception as e:
         print(f"⚠️ Query optimization failed: {e}")
-        # Fallback to simple query
-        return f"{prompt} anime fanart"
+        return prompt  # Just use the original
 
 
 async def search_reference_images(query: str, max_results: int = 3) -> list[str]:
