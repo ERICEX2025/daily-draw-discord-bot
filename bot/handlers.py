@@ -163,15 +163,16 @@ async def handle_reroll_prompt(server_id: str, **_) -> str:
         return "No channel configured for daily prompts. Set one first."
     
     # Delete today's prompt so post_daily_prompt won't skip
-    deleted = await db.delete_todays_prompt(server_id, server_tz)
+    await db.delete_todays_prompt(server_id, server_tz)
     
-    # Reuse the existing scheduler function
+    # Reuse the existing scheduler function (posts to channel automatically)
     await scheduler.post_daily_prompt(server_id)
     
-    if deleted:
-        return "Replaced today's prompt with a new one."
-    else:
-        return "Posted a new prompt."
+    # Get the prompt that was just posted so GPT knows what it was
+    new_prompt = await db.get_todays_prompt(server_id, server_tz)
+    prompt_text = new_prompt["prompt_text"] if new_prompt else "unknown"
+    
+    return f"Done—new prompt '{prompt_text}' has been posted to the channel. No need to repeat it."
 
 
 async def handle_pause_schedule(server_id: str, args: dict, **_) -> str:
