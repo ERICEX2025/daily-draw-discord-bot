@@ -263,8 +263,7 @@ async def handle_recall_memories(server_id: str, args: dict, **_) -> str:
 # =============================================================================
 
 async def handle_search_images(server_id: str, args: dict, settings: dict, message) -> dict:
-    """Search for reference images using DuckDuckGo and send as Discord embeds."""
-    import discord
+    """Search for reference images using DuckDuckGo. Returns URLs to be sent as embeds after Mai's response."""
     from bot import utils
     
     query = args.get("query", "")
@@ -276,21 +275,11 @@ async def handle_search_images(server_id: str, args: dict, settings: dict, messa
     if not urls:
         return {"message": f"No images found for '{query}'"}
     
-    # Send images as Discord embeds
-    embeds = []
-    for i, url in enumerate(urls):
-        embed = discord.Embed()
-        embed.set_image(url=url)
-        if i == 0:
-            embed.title = f"🔍 {query}"
-        embeds.append(embed)
-    
-    try:
-        await message.channel.send(embeds=embeds)
-        return {"message": f"Sent {len(urls)} reference images for '{query}'"}
-    except Exception as e:
-        # If embeds fail, return URLs as fallback
-        return {"query": query, "images": urls, "note": "Could not embed, here are the URLs"}
+    # Return images with special flag - main.py will send them after Mai's text
+    return {
+        "message": f"Found {len(urls)} reference images for '{query}'. They will appear after your response.",
+        "_pending_images": {"query": query, "urls": urls}
+    }
 
 
 async def handle_web_search(server_id: str, args: dict, settings: dict, message) -> dict:

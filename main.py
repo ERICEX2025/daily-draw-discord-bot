@@ -225,6 +225,7 @@ async def _handle_mention(message: discord.Message):
             # e.g., "What was yesterday's prompt?" → get_history → "Make today's similar"
             # Keep looping until Mai responds with text instead of more function calls
             all_results = []  # Accumulate results across chains
+            pending_images = []  # Images to send after Mai's text response
             
             for _ in range(MAX_FUNCTION_CHAIN_ITERATIONS):
                 if not function_calls:
@@ -238,6 +239,15 @@ async def _handle_mention(message: discord.Message):
                         message,
                         settings
                     )
+                    
+                    # Check for pending images in the result
+                    try:
+                        result_data = json.loads(result)
+                        if result_data.get("ok") and result_data.get("data", {}).get("_pending_images"):
+                            pending_images.append(result_data["data"]["_pending_images"])
+                    except:
+                        pass
+                    
                     all_results.append({
                         "name": fc["name"],
                         "args": fc.get("args", {}),
@@ -290,6 +300,27 @@ async def _handle_mention(message: discord.Message):
         else:
             # Edge case: GPT kept calling functions without responding
             await message.reply("...give me a second.")
+        
+        # ----- STEP 10: Send pending images (after Mai's text) -----
+        
+        if pending_images:
+            for img_data in pending_images:
+                query = img_data.get("query", "Reference")
+                urls = img_data.get("urls", [])
+                
+                if urls:
+                    embeds = []
+                    for i, url in enumerate(urls):
+                        embed = discord.Embed()
+                        embed.set_image(url=url)
+                        if i == 0:
+                            embed.title = f"🔍 {query}"
+                        embeds.append(embed)
+                    
+                    try:
+                        await message.channel.send(embeds=embeds)
+                    except Exception as e:
+                        print(f"Failed to send image embeds: {e}")
 
 
 # =============================================================================
