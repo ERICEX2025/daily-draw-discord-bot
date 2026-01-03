@@ -328,7 +328,7 @@ async def handle_recall_memories(server_id: str, args: dict, **_) -> str:
 # =============================================================================
 
 async def handle_search_images(server_id: str, args: dict, settings: dict, message) -> dict:
-    """Search for reference images using DuckDuckGo. Returns URLs to be sent as embeds after Mai's response."""
+    """Search for reference images using DuckDuckGo. Returns URLs to be sent as attachments after Mai's response."""
     from bot import utils
     
     query = args.get("query", "")
@@ -343,11 +343,10 @@ async def handle_search_images(server_id: str, args: dict, settings: dict, messa
     if not urls:
         return {"message": f"No images found for '{query}'"}
     
-    # Return images with special flag - main.py will send them after Mai's text
-    # Don't include URLs here so GPT won't repeat them in response
+    # Return images with special flag - main.py will send them as attachments after Mai's text
     img_word = "image" if len(urls) == 1 else "images"
     return {
-        "message": f"Found {len(urls)} reference {img_word} for '{query}'. Will be shown as embed(s) after your message—don't include URLs.",
+        "message": f"Found {len(urls)} reference {img_word} for '{query}'. Will be attached after your message—don't include URLs.",
         "_pending_images": {"query": query, "urls": urls}
     }
 
