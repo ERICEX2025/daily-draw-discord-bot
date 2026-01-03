@@ -180,16 +180,16 @@ Optionally set a different time and timezone:
 
 Just @mention Mai-san and talk naturally. Here's what she can do:
 
-| What you want       | Example                                          |
-| ------------------- | ------------------------------------------------ |
-| Get today's prompt  | "@Mai-san what should I draw today?"             |
-| Change schedule     | "@Mai-san post prompts at 10am PST"              |
-| Set prompt channel  | "@Mai-san post daily prompts in #art-prompts"    |
-| Set theme           | "@Mai-san set theme to dark fantasy"             |
-| View history        | "@Mai-san what did we draw last week?"           |
-| Get feedback        | "@Mai-san [attach image] how's my drawing?"      |
-| Pause prompts       | "@Mai-san pause for a week"                      |
-| Resume prompts      | "@Mai-san resume prompts"                        |
+| What you want      | Example                                       |
+| ------------------ | --------------------------------------------- |
+| Get today's prompt | "@Mai-san what should I draw today?"          |
+| Change schedule    | "@Mai-san post prompts at 10am PST"           |
+| Set prompt channel | "@Mai-san post daily prompts in #art-prompts" |
+| Set theme          | "@Mai-san set theme to dark fantasy"          |
+| View history       | "@Mai-san what did we draw last week?"        |
+| Get feedback       | "@Mai-san [attach image] how's my drawing?"   |
+| Pause prompts      | "@Mai-san pause for a week"                   |
+| Resume prompts     | "@Mai-san resume prompts"                     |
 
 Mai-san also remembers things automatically — your preferences, fun facts you share, and important events in the server.
 
@@ -224,83 +224,96 @@ daily-draw-bot/
 └── requirements.txt     # Dependencies
 ```
 
-## Deploying to a Cloud Server
+## Deploying to Oracle Cloud
 
-To keep Mai-san running 24/7, deploy to a cloud server. Here are a few options:
+Oracle Cloud's Always Free tier includes ARM-based VMs that are perfect for running Mai-san 24/7.
 
-### Railway (Recommended — Easy)
+### 1. Create an Oracle Cloud Instance
 
-1. Push your code to GitHub
-2. Go to [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub**
-3. Select your repo
-4. Add environment variables:
-   - `DISCORD_TOKEN`
-   - `OPENAI_API_KEY`
-   - `SUPABASE_URL`
-   - `SUPABASE_KEY`
-5. Railway auto-detects Python and deploys
+1. Sign up at [cloud.oracle.com](https://cloud.oracle.com) (free tier available)
+2. Go to **Compute** → **Instances** → **Create Instance**
+3. Choose **Ampere A1** (ARM) — up to 4 OCPUs and 24GB RAM free
+4. Select **Oracle Linux** or **Ubuntu**
+5. Download your SSH key pair
+6. Create the instance
 
-**Cost:** ~$5/month for always-on
-
-### Fly.io
+### 2. Connect and Set Up
 
 ```bash
-# Install flyctl
-curl -L https://fly.io/install.sh | sh
+# SSH into your instance
+ssh -i ~/path/to/your-key.key opc@your-instance-ip
 
-# Login and launch
-fly auth login
-fly launch
+# Install Python and git
+sudo dnf install python3 python3-pip git -y  # Oracle Linux
+# or: sudo apt install python3 python3-pip git -y  # Ubuntu
 
-# Set secrets
-fly secrets set DISCORD_TOKEN=your_token OPENAI_API_KEY=your_key SUPABASE_URL=your_url SUPABASE_KEY=your_key
-
-# Deploy
-fly deploy
-```
-
-Add a `fly.toml` to your project:
-
-```toml
-app = "daily-draw-bot"
-primary_region = "ord"
-
-[build]
-  builder = "paketobuildpacks/builder:base"
-
-[env]
-  PORT = "8080"
-```
-
-**Cost:** Free tier available, ~$3-5/month for always-on
-
-### VPS (DigitalOcean, Linode, etc.)
-
-For a simple VPS setup:
-
-```bash
-# SSH into your server
-ssh user@your-server
-
-# Clone and setup
+# Clone the repo
 git clone https://github.com/ERICEX2025/daily-draw-discord-bot.git
 cd daily-draw-discord-bot
+
+# Set up virtual environment
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-
-# Create .env file with your tokens
-nano .env
-
-# Run with screen (keeps running after disconnect)
-screen -S mai-san
-python main.py
-# Press Ctrl+A then D to detach
 ```
 
-To reattach: `screen -r mai-san`
+### 3. Configure Environment
 
-**Cost:** ~$4-6/month for a small droplet
+```bash
+# Create .env file
+nano .env
+```
+
+Add your credentials:
+
+```
+DISCORD_TOKEN=your_discord_token
+OPENAI_API_KEY=your_openai_key
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your_supabase_anon_key
+```
+
+### 4. Run with systemd (Recommended)
+
+Create a systemd service for automatic restarts:
+
+```bash
+sudo nano /etc/systemd/system/mai-san.service
+```
+
+```ini
+[Unit]
+Description=Mai-san Discord Bot
+After=network.target
+
+[Service]
+Type=simple
+User=opc
+WorkingDirectory=/home/opc/daily-draw-discord-bot
+Environment=PATH=/home/opc/daily-draw-discord-bot/.venv/bin
+ExecStart=/home/opc/daily-draw-discord-bot/.venv/bin/python main.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable mai-san
+sudo systemctl start mai-san
+
+# Check status
+sudo systemctl status mai-san
+
+# View logs
+sudo journalctl -u mai-san -f
+```
+
+**Cost:** Free on Oracle Cloud Always Free tier
 
 ## License
 
