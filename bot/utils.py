@@ -20,12 +20,13 @@ async def optimize_search_query(prompt: str) -> str:
     """
     import os
     from openai import AsyncOpenAI
+    from bot.config import MODEL
     
     try:
         client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         
         response = await client.chat.completions.create(
-            model="gpt-4o-mini",  # Fast and cheap for this simple task
+            model=MODEL,
             messages=[
                 {
                     "role": "system",
