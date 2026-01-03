@@ -30,37 +30,29 @@ load_dotenv()
 # OPENAI CLIENT SETUP (with Langfuse Observability)
 # =============================================================================
 
-# Check if Langfuse is configured AND Python version is compatible
-# Langfuse has serialization bugs with Python 3.13+
-import sys
-_langfuse_enabled = (
-    bool(os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"))
-    and sys.version_info < (3, 13)  # Disable on Python 3.13+ due to serialization bug
-)
+# Check if Langfuse is configured
+_langfuse_enabled = bool(os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"))
 
 if _langfuse_enabled:
     try:
         from langfuse.openai import AsyncOpenAI  # Wrapped client for auto-tracing
         from langfuse import observe
-        print(f"🔍 Langfuse observability enabled (Python {sys.version_info.major}.{sys.version_info.minor})")
+        print("🔍 Langfuse observability enabled")
     except ImportError as e:
         print(f"⚠️ Langfuse import failed: {e}")
         from openai import AsyncOpenAI
-        def observe(*args, **kwargs):
+        def observe(name=None, capture_input=True, capture_output=True):
             def decorator(func):
                 return func
             return decorator
         _langfuse_enabled = False
 else:
     from openai import AsyncOpenAI
-    def observe(*args, **kwargs):
+    def observe(name=None, capture_input=True, capture_output=True):
         def decorator(func):
             return func
         return decorator
-    if sys.version_info >= (3, 13):
-        print(f"📊 Langfuse disabled (Python 3.13+ not supported)")
-    else:
-        print("📊 Langfuse not configured - set LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY")
+    print("📊 Langfuse not configured - set LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY")
 
 # Create the async OpenAI client
 # AsyncOpenAI is used because Discord.py is async (non-blocking)
@@ -71,7 +63,7 @@ client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # PROMPT GENERATION
 # =============================================================================
 
-@observe(name="generate_daily_prompt")
+@observe(name="generate_daily_prompt", capture_input=False, capture_output=False)
 async def generate_daily_prompt(
     recent_prompts: Optional[list[dict]] = None,
     theme: str = "anime and video game inspired",
@@ -170,7 +162,7 @@ Respond with JSON in this exact format:
 # MAIN CHAT FUNCTION
 # =============================================================================
 
-@observe(name="chat_with_mai")
+@observe(name="chat_with_mai", capture_input=False, capture_output=False)
 async def chat_with_mai(
     user_message: str,
     username: str,

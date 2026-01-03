@@ -35,26 +35,28 @@ from bot import scheduler
 from bot.memory import get_conversation_history, add_to_history
 from bot.config import MAX_FUNCTION_CHAIN_ITERATIONS, MEMORIES_FOR_CONTEXT
 
-# Import Langfuse for tracing (if configured and Python < 3.13)
-import sys
-_langfuse_enabled = (
-    bool(os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"))
-    and sys.version_info < (3, 13)  # Disable on Python 3.13+ due to serialization bug
-)
+# Import Langfuse for tracing (if configured)
+_langfuse_enabled = bool(os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"))
 if _langfuse_enabled:
     try:
-        from langfuse import observe
+        from langfuse import observe, get_client, propagate_attributes
     except ImportError:
-        def observe(*args, **kwargs):
+        def observe(name=None, capture_input=True, capture_output=True):
             def decorator(func):
                 return func
             return decorator
+        def propagate_attributes(**kwargs):
+            from contextlib import nullcontext
+            return nullcontext()
         _langfuse_enabled = False
 else:
-    def observe(*args, **kwargs):
+    def observe(name=None, capture_input=True, capture_output=True):
         def decorator(func):
             return func
         return decorator
+    def propagate_attributes(**kwargs):
+        from contextlib import nullcontext
+        return nullcontext()
 
 # Load environment variables from .env file (DISCORD_TOKEN, OPENAI_API_KEY)
 load_dotenv()
@@ -130,6 +132,14 @@ async def on_message(message: discord.Message):
     if bot.user not in message.mentions:
         return
     
+    # Handle the message in an observed context for Langfuse tracing
+    await _handle_mention(message)
+
+
+@observe(name="handle_mention", capture_input=False, capture_output=False)
+async def _handle_mention(message: discord.Message):
+    """Inner handler wrapped with @observe for Langfuse tracing."""
+    
     # ----- STEP 2: Extract the user's message -----
     
     # Remove the @mention from the message to get just the text
@@ -147,6 +157,17 @@ async def on_message(message: discord.Message):
     
     # Get the user's display name (what GPT will see, not the numeric ID)
     username = message.author.display_name
+    
+    # Get channel ID for session tracking
+    channel_id = str(message.channel.id)
+    
+    # Update Langfuse span with input
+    if _langfuse_enabled:
+        try:
+            langfuse = get_client()
+            langfuse.update_current_span(input=user_message)
+        except Exception:
+            pass
     
     # Fetch current settings (post time, channel, etc.)
     settings = await db.get_settings(server_id)
@@ -178,69 +199,72 @@ async def on_message(message: discord.Message):
     
     # ----- STEP 6: Call GPT and get response -----
     
-    # Get channel ID for session tracking
-    channel_id = str(message.channel.id)
-    
     # Show "typing..." indicator while processing
     async with message.channel.typing():
-        # Send message to GPT-5.2 (Mai-san's brain)
-        response_text, function_calls = await gpt.chat_with_mai(
-            user_message=user_message,
-            username=username,
-            conversation_history=conversation_history,
-            current_settings=settings,
-            image_urls=image_urls if image_urls else None,
-            long_term_memories=long_term_memories,
-            server_id=server_id,
-            channel_id=channel_id
-        )
-        
-        # ----- STEP 7: Execute functions (loop for chained calls) -----
-        
-        # Mai might call functions, see results, then call more functions
-        # e.g., "What was yesterday's prompt?" → get_history → "Make today's similar"
-        # Keep looping until Mai responds with text instead of more function calls
-        all_results = []  # Accumulate results across chains
-        
-        for _ in range(MAX_FUNCTION_CHAIN_ITERATIONS):
-            if not function_calls:
-                break
-            
-            # Execute each function and collect results
-            for fc in function_calls:
-                result = await execute_function(
-                    fc["name"],
-                    fc["args"],
-                    message,
-                    settings
-                )
-                all_results.append({
-                    "name": fc["name"],
-                    "args": fc.get("args", {}),
-                    "result": result,
-                    "tool_call_id": fc["tool_call_id"]
-                })
-            
-            # Refresh memories (in case save_memory was just called)
-            memories_raw = await db.get_memories_for_context(
-                server_id,
-                current_user=username,
-                limit=MEMORIES_FOR_CONTEXT
-            )
-            long_term_memories = [m["memory"] for m in memories_raw]
-            
-            # Call GPT again with results — might return more function calls or text
+        # Propagate user/session to ALL child observations (Langfuse best practice)
+        with propagate_attributes(
+            user_id=username,
+            session_id=f"server-{server_id}-channel-{channel_id}",
+            metadata={"server_id": server_id, "channel_id": channel_id}
+        ):
+            # Send message to GPT-5.2 (Mai-san's brain)
             response_text, function_calls = await gpt.chat_with_mai(
                 user_message=user_message,
                 username=username,
                 conversation_history=conversation_history,
-                current_settings=await db.get_settings(server_id),  # Refresh settings
+                current_settings=settings,
                 image_urls=image_urls if image_urls else None,
-                function_result=all_results,
                 long_term_memories=long_term_memories,
                 server_id=server_id,
                 channel_id=channel_id
             )
+            
+            # ----- STEP 7: Execute functions (loop for chained calls) -----
+            
+            # Mai might call functions, see results, then call more functions
+            # e.g., "What was yesterday's prompt?" → get_history → "Make today's similar"
+            # Keep looping until Mai responds with text instead of more function calls
+            all_results = []  # Accumulate results across chains
+            
+            for _ in range(MAX_FUNCTION_CHAIN_ITERATIONS):
+                if not function_calls:
+                    break
+                
+                # Execute each function and collect results
+                for fc in function_calls:
+                    result = await execute_function(
+                        fc["name"],
+                        fc["args"],
+                        message,
+                        settings
+                    )
+                    all_results.append({
+                        "name": fc["name"],
+                        "args": fc.get("args", {}),
+                        "result": result,
+                        "tool_call_id": fc["tool_call_id"]
+                    })
+                
+                # Refresh memories (in case save_memory was just called)
+                memories_raw = await db.get_memories_for_context(
+                    server_id,
+                    current_user=username,
+                    limit=MEMORIES_FOR_CONTEXT
+                )
+                long_term_memories = [m["memory"] for m in memories_raw]
+                
+                # Call GPT again with results — might return more function calls or text
+                response_text, function_calls = await gpt.chat_with_mai(
+                    user_message=user_message,
+                    username=username,
+                    conversation_history=conversation_history,
+                    current_settings=await db.get_settings(server_id),  # Refresh settings
+                    image_urls=image_urls if image_urls else None,
+                    function_result=all_results,
+                    long_term_memories=long_term_memories,
+                    server_id=server_id,
+                    channel_id=channel_id
+                )
         
         # ----- STEP 8: Save to short-term memory -----
         
@@ -251,6 +275,14 @@ async def on_message(message: discord.Message):
         add_to_history(server_id, "assistant", response_text, username="Mai")
         
         # ----- STEP 9: Reply -----
+        
+        # Update Langfuse span with final output
+        if _langfuse_enabled:
+            try:
+                langfuse = get_client()
+                langfuse.update_current_span(output=response_text or "...give me a second.")
+            except Exception:
+                pass
         
         # Send the response back to Discord
         if response_text:
@@ -264,7 +296,7 @@ async def on_message(message: discord.Message):
 # FUNCTION EXECUTOR
 # =============================================================================
 
-@observe(name="execute_function")
+@observe(name="execute_tool", capture_input=False, capture_output=False)
 async def execute_function(name: str, args: dict, message: discord.Message, settings: dict) -> str:
     """
     Execute a function that GPT decided to call.
@@ -285,6 +317,19 @@ async def execute_function(name: str, args: dict, message: discord.Message, sett
     
     server_id = str(message.guild.id) if message.guild else str(message.author.id)
     
+    # Update Langfuse span with tool details
+    if _langfuse_enabled:
+        try:
+            from langfuse import get_client
+            langfuse = get_client()
+            langfuse.update_current_span(
+                name=f"tool:{name}",
+                input={"function": name, "args": args},
+                metadata={"server_id": server_id}
+            )
+        except Exception:
+            pass
+    
     handler = HANDLERS.get(name)
     if not handler:
         return json.dumps({"ok": False, "error": f"Function '{name}' not recognized"})
@@ -299,9 +344,20 @@ async def execute_function(name: str, args: dict, message: discord.Message, sett
     # Always return machine-readable JSON to the model.
     # Handlers may return str (legacy) or dict/list (preferred).
     if isinstance(result, (dict, list)):
-        return json.dumps({"ok": True, "data": result})
-
-    return json.dumps({"ok": True, "message": str(result)})
+        output = json.dumps({"ok": True, "data": result})
+    else:
+        output = json.dumps({"ok": True, "message": str(result)})
+    
+    # Update Langfuse span with output
+    if _langfuse_enabled:
+        try:
+            from langfuse import get_client
+            langfuse = get_client()
+            langfuse.update_current_span(output=output)
+        except Exception:
+            pass
+    
+    return output
 
 
 # =============================================================================

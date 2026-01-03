@@ -19,3 +19,15 @@
 {"hypothesisId": "F", "location": "gpt.py:before_call", "message": "Before OpenAI call (standard client)", "data": {"langfuse_enabled": false, "msg_count": 4, "has_images": false, "is_followup": true}, "timestamp": 1767466108457}
 {"hypothesisId": "F", "location": "gpt.py:after_call", "message": "After OpenAI call", "data": {"has_tool_calls": false, "tool_names": []}, "timestamp": 1767466109507}
 {"hypothesisId": "C", "location": "gpt.py:returning_text", "message": "Returning text response", "data": {"content_len": 101}, "timestamp": 1767466109507}
+{"hypothesisId": "F", "location": "gpt.py:before_call", "message": "Before OpenAI call (standard client)", "data": {"langfuse_enabled": false, "msg_count": 4, "has_images": false, "is_followup": false}, "timestamp": 1767468417666}
+{"hypothesisId": "F", "location": "gpt.py:after_call", "message": "After OpenAI call", "data": {"has_tool_calls": true, "tool_names": ["get_history"]}, "timestamp": 1767468419180}
+{"hypothesisId": "A", "location": "gpt.py:returning_tools", "message": "Returning tool calls", "data": {"tool_count": 1}, "timestamp": 1767468419180}
+{"hypothesisId": "F", "location": "gpt.py:before_call", "message": "Before OpenAI call (standard client)", "data": {"langfuse_enabled": false, "msg_count": 6, "has_images": false, "is_followup": true}, "timestamp": 1767468419554}
+{"hypothesisId": "F", "location": "gpt.py:after_call", "message": "After OpenAI call", "data": {"has_tool_calls": false, "tool_names": []}, "timestamp": 1767468420420}
+{"hypothesisId": "C", "location": "gpt.py:returning_text", "message": "Returning text response", "data": {"content_len": 35}, "timestamp": 1767468420420}
+{"hypothesisId": "F", "location": "gpt.py:before_call", "message": "Before OpenAI call (standard client)", "data": {"langfuse_enabled": false, "msg_count": 6, "has_images": false, "is_followup": false}, "timestamp": 1767468949319}
+{"hypothesisId": "F", "location": "gpt.py:after_call", "message": "After OpenAI call", "data": {"has_tool_calls": false, "tool_names": []}, "timestamp": 1767468950251}
+{"hypothesisId": "C", "location": "gpt.py:returning_text", "message": "Returning text response", "data": {"content_len": 53}, "timestamp": 1767468950252}
+{"hypothesisId": "F", "location": "gpt.py:before_call", "message": "Before OpenAI call (standard client)", "data": {"langfuse_enabled": false, "msg_count": 8, "has_images": false, "is_followup": false}, "timestamp": 1767469151464}
+{"hypothesisId": "F", "location": "gpt.py:after_call", "message": "After OpenAI call", "data": {"has_tool_calls": false, "tool_names": []}, "timestamp": 1767469152098}
+{"hypothesisId": "C", "location": "gpt.py:returning_text", "message": "Returning text response", "data": {"content_len": 19}, "timestamp": 1767469152098}
