@@ -270,15 +270,19 @@ async def handle_search_images(server_id: str, args: dict, settings: dict, messa
     if not query:
         return {"error": "No search query provided"}
     
-    urls = await utils.search_reference_images(query, max_results=1)
+    count = args.get("count", 1)  # Default to 1, but can request more
+    count = max(1, min(count, 5))  # Clamp between 1-5
+    
+    urls = await utils.search_reference_images(query, max_results=count)
     
     if not urls:
         return {"message": f"No images found for '{query}'"}
     
     # Return images with special flag - main.py will send them after Mai's text
     # Don't include URLs here so GPT won't repeat them in response
+    img_word = "image" if len(urls) == 1 else "images"
     return {
-        "message": f"Found a reference image for '{query}'. It will be shown as an embed after your message—don't include URLs.",
+        "message": f"Found {len(urls)} reference {img_word} for '{query}'. Will be shown as embed(s) after your message—don't include URLs.",
         "_pending_images": {"query": query, "urls": urls}
     }
 

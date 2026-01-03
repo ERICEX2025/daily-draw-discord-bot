@@ -244,13 +244,17 @@ FUNCTIONS = [
     # --- Search ---
     {
         "name": Function.SEARCH_IMAGES,
-        "description": "Search for reference images of characters, objects, or art styles. Images will be sent as embeds automatically—do NOT include URLs in your response text.",
+        "description": "Search for reference images of characters, objects, or art styles. Images will be sent as embeds automatically—do NOT include URLs in your response text. Default is 1 image; only request more if user asks for multiple references.",
         "parameters": {
             "type": "object",
             "properties": {
                 "query": {
                     "type": "string",
                     "description": "What to search for, e.g., 'Snorlax pokemon', 'Hori from Horimiya', 'art nouveau style'"
+                },
+                "count": {
+                    "type": "integer",
+                    "description": "Number of images to return (1-5). Default is 1. Only use more if user specifically asks for multiple references."
                 }
             },
             "required": ["query"]
