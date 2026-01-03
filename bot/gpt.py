@@ -122,7 +122,7 @@ async def generate_daily_prompt(
                 "role": "user",
                 "content": f"""It's time to post today's daily drawing prompt! The theme is: {theme}.
 
-Come up with a SHORT, simple prompt — just a fun concept in a few words. Examples:
+Come up with a SHORT, simple prompt that's FUN to draw — something that makes artists go "ooh, I wanna draw that." Examples:
 - "Snorlax as an ice cream"
 - "Hori from Horimiya"
 - "sunset at a ramen shop"
@@ -132,7 +132,7 @@ Come up with a SHORT, simple prompt — just a fun concept in a few words. Examp
 - "a mage who's bad at magic"
 - "Link"
 
-Mix it up — sometimes a specific character, sometimes a scene or vibe, sometimes just a name. Keep it simple and open to interpretation.
+Mix it up — sometimes a specific character, sometimes a scene or vibe, sometimes just a name. Keep it simple, appealing, and open to interpretation. Think: what would be satisfying to sketch?
 
 Present it with a short message in YOUR voice — dry, slightly teasing, maybe a little sarcastic. Something like:
 - "today's prompt: 'a tired swordsman.' ...no, drawing me doesn't count."
