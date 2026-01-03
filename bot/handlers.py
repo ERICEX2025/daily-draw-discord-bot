@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, timezone as tz
 from bot import database as db
 from bot import scheduler
 from bot.personality import Function
+from bot.config import MEMORIES_RECALL_LIMIT
 
 
 # =============================================================================
@@ -55,8 +56,15 @@ async def handle_set_schedule(server_id: str, args: dict, **_) -> str:
     # Update the scheduler job to use the new time and timezone
     scheduler.add_or_update_job(server_id, time, tz)
     
-    # Format nice response
+    # Auto-save this as an event memory
     tz_display = timezone if timezone else settings.get("timezone", "America/New_York")
+    await db.save_memory(
+        server_id,
+        f"Schedule changed to {time} ({tz_display})",
+        category="event",
+        importance=4
+    )
+    
     return f"Daily prompt time set to {time} ({tz_display})"
 
 
@@ -84,6 +92,14 @@ async def handle_set_channel(server_id: str, args: dict, message: discord.Messag
                 server_id, 
                 settings["post_time"], 
                 settings.get("timezone", "America/New_York")
+            )
+            
+            # Auto-save this as an event memory
+            await db.save_memory(
+                server_id,
+                f"Daily prompts channel set to #{channel.name}",
+                category="event",
+                importance=5  # Important setup event
             )
             
             return f"Daily prompts will now be posted to #{channel.name}"
@@ -157,7 +173,73 @@ async def handle_set_theme(server_id: str, args: dict, **_) -> str:
     
     await db.update_settings(server_id, theme=theme)
     
+    # Auto-save this as an event memory
+    await db.save_memory(
+        server_id,
+        f"Theme changed to: {theme}",
+        category="event",
+        importance=4
+    )
+    
     return f"Theme set to: {theme}"
+
+
+async def handle_save_memory(server_id: str, args: dict, **_) -> str:
+    """
+    Save a long-term memory with category and importance.
+    
+    Mai can use this to remember things about users or the server.
+    Categories: user_fact, preference, event, conversation, general
+    """
+    memory = args["memory"]
+    about_user = args.get("about_user")
+    category = args.get("category", "general")
+    importance = args.get("importance")  # None = use default for category
+    
+    user_id = about_user if about_user else None
+    
+    await db.save_memory(
+        server_id,
+        memory,
+        user_id=user_id,
+        category=category,
+        importance=importance
+    )
+    
+    if about_user:
+        return f"Remembered about {about_user} [{category}]: {memory}"
+    return f"Remembered [{category}]: {memory}"
+
+
+async def handle_recall_memories(server_id: str, args: dict, **_) -> str:
+    """
+    Recall memories from long-term storage.
+    """
+    about_user = args.get("about_user")
+    category = args.get("category")
+    
+    memories = await db.get_memories(
+        server_id,
+        user_id=about_user,
+        category=category,
+        limit=MEMORIES_RECALL_LIMIT
+    )
+    
+    if not memories:
+        if about_user:
+            return f"No memories found about {about_user}"
+        return "No memories saved yet"
+    
+    # Format memories with category and importance
+    memory_list = []
+    for m in memories:
+        prefix = f"[{m.get('category', 'general')}]"
+        if m.get("user_id"):
+            memory_list.append(f"- {prefix} About {m['user_id']}: {m['memory']}")
+        else:
+            memory_list.append(f"- {prefix} {m['memory']}")
+    
+    return "Memories:\n" + "\n".join(memory_list)
 
 
 # =============================================================================
@@ -171,5 +253,7 @@ HANDLERS = {
     Function.PAUSE_SCHEDULE: handle_pause_schedule,
     Function.RESUME_SCHEDULE: handle_resume_schedule,
     Function.GET_HISTORY: handle_get_history,
+    Function.SAVE_MEMORY: handle_save_memory,
+    Function.RECALL_MEMORIES: handle_recall_memories,
 }
 

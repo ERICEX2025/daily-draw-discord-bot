@@ -61,6 +61,16 @@ async def start_scheduler():
             timezone=server["timezone"]
         )
     
+    # Add weekly memory cleanup job (runs every Sunday at 3am EST)
+    scheduler.add_job(
+        cleanup_expired_memories,
+        CronTrigger(day_of_week="sun", hour=3, minute=0, timezone=EST),
+        id="memory_cleanup",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+    print("🧹 Scheduled weekly memory cleanup (Sundays 3am EST)")
+    
     scheduler.start()
     print(f"📅 Scheduler started with {len(servers)} daily prompt job(s)")
 
@@ -173,18 +183,37 @@ async def post_daily_prompt(server_id: str):
             print(f"⚠️ Could not find channel {channel_id} for server {server_id}")
             return
         
-        # Generate the prompt
-        # Include dates so GPT knows when each prompt was used
-        all_history = await db.get_prompt_history(server_id)
+        # Generate the prompt with full context
+        from bot.config import (
+            RECENT_PROMPTS_FOR_GENERATION,
+            DAILY_PROMPT_MEMORIES,
+            DAILY_PROMPT_RECENT_MESSAGES,
+        )
+        from bot.memory import get_recent_messages, add_to_history
+        
+        # Get recent prompts to avoid repeats
+        recent_history = await db.get_prompt_history(server_id, limit=RECENT_PROMPTS_FOR_GENERATION)
         past_prompts = [
             {"date": p["created_at"][:10], "prompt": p["prompt_text"]}
-            for p in all_history
+            for p in recent_history
         ]
+        
+        # Get long-term memories for personalization
+        memories_raw = await db.get_memories(server_id, limit=DAILY_PROMPT_MEMORIES)
+        memories = [m["memory"] for m in memories_raw]
+        
+        # Get recent conversations for context
+        recent_messages = get_recent_messages(server_id, limit=DAILY_PROMPT_RECENT_MESSAGES)
         
         # Get theme from settings (defaults to "anime and video game inspired")
         theme = settings.get("theme", "anime and video game inspired")
         
-        raw_prompt, mai_message = await gpt.generate_daily_prompt(past_prompts, theme=theme)
+        raw_prompt, mai_message = await gpt.generate_daily_prompt(
+            past_prompts,
+            theme=theme,
+            memories=memories if memories else None,
+            recent_messages=recent_messages if recent_messages else None
+        )
         
         # Save to database
         await db.save_prompt(server_id, raw_prompt)
@@ -192,8 +221,25 @@ async def post_daily_prompt(server_id: str):
         # Send to Discord
         await channel.send(mai_message)
         
+        # Add to short-term memory so Mai knows what she just posted
+        add_to_history(server_id, "assistant", mai_message, username="Mai")
+        
         print(f"✅ Posted daily prompt to server {server_id}")
         
     except Exception as e:
         print(f"❌ Error posting daily prompt to server {server_id}: {e}")
+
+
+async def cleanup_expired_memories():
+    """
+    Clean up expired memories from all servers.
+    
+    Runs weekly to remove memories that have passed their expiry date.
+    This keeps the database clean and memory retrieval fast.
+    """
+    try:
+        deleted_count = await db.cleanup_expired_memories()
+        print(f"🧹 Memory cleanup: deleted {deleted_count} expired memories")
+    except Exception as e:
+        print(f"❌ Error during memory cleanup: {e}")
 

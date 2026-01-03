@@ -1,6 +1,6 @@
 # Daily Draw Bot 🎨
 
-**Mai-san** — A GPT-5.2 powered Discord bot inspired by Sakurajima Mai from "Rascal Does Not Dream of Bunny Girl Senpai." She helps run your art channel with daily drawing prompts and can even critique your artwork!
+**Mai-san** — A GPT-5.2 powered Discord bot inspired by Sakurajima Mai from "Rascal Does Not Dream of Bunny Girl Senpai." She helps run your art channel with daily drawing prompts, remembers things about your community, and can even critique your artwork!
 
 ## Example Conversations
 
@@ -31,7 +31,7 @@ Mai: I'm doing fine, thanks for asking. Though I'd be doing better
 
 ### 🎨 Daily Prompts
 
-Scheduled drawing prompts posted automatically at your preferred time.
+Scheduled drawing prompts posted automatically at your preferred time, with customizable themes.
 
 ```
 [9:00 AM in #art-prompts]
@@ -54,6 +54,40 @@ Mai: *studies your work carefully*
      Overall: 7.5/10. You're improving. Keep it up.
 ```
 
+### 🧠 Long-Term Memory
+
+Mai-san remembers things about you and your server — preferences, fun facts, milestones.
+
+```
+You: @Mai-san I really love drawing dragons
+Mai: Noted! I'll remember that about you~ 🐉
+
+[A week later]
+You: @Mai-san what should I draw?
+Mai: Well, since you love dragons... how about a dragon
+     guarding a treasure hoard in a moonlit cave?
+```
+
+### 🎭 Customizable Themes
+
+Set the vibe for your prompts — fantasy, horror, sci-fi, slice of life, and more.
+
+```
+You: @Mai-san set the theme to cozy slice of life
+Mai: Got it! Switched to cozy slice of life~
+     Expect more warm, everyday moments in your prompts. ☕
+```
+
+### ⏸️ Pause & Resume
+
+Taking a break? Pause prompts for a few days.
+
+```
+You: @Mai-san pause prompts for a week
+Mai: Alright, daily prompts paused for 7 days.
+     Enjoy your break... but don't forget to draw! 🎨
+```
+
 ### 📜 Prompt History
 
 Ask about past prompts anytime.
@@ -66,11 +100,11 @@ Mai: Monday's prompt was "A street musician playing for ghosts."
 
 ### ⏰ Flexible Scheduling
 
-Change the posting time through natural conversation.
+Change the posting time and timezone through natural conversation.
 
 ```
-You: @Mai-san can you post earlier? Like 8am?
-Mai: Alright, I'll post daily prompts at 8:00 AM from now on.
+You: @Mai-san can you post at 8am PST?
+Mai: Alright, I'll post daily prompts at 8:00 AM Pacific time.
      Early bird gets the... better art skills? Something like that.
 ```
 
@@ -95,7 +129,13 @@ Mai: Alright, I'll post daily prompts at 8:00 AM from now on.
 3. Go to **API Keys** → **Create new secret key**
 4. Copy the key (you'll need this)
 
-### 3. Install & Run
+### 3. Set Up Supabase
+
+1. Create a project at [supabase.com](https://supabase.com)
+2. Go to **SQL Editor** and run the contents of `supabase_schema.sql`
+3. Copy your project URL and anon key from **Settings → API**
+
+### 4. Install & Run
 
 ```bash
 git clone <your-repo-url>
@@ -114,19 +154,13 @@ SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_KEY=your_supabase_anon_key
 ```
 
-Set up Supabase:
-
-1. Create a project at [supabase.com](https://supabase.com)
-2. Go to SQL Editor and run the contents of `supabase_schema.sql`
-3. Copy your project URL and anon key from Settings → API
-
 Run the bot:
 
 ```bash
 python main.py
 ```
 
-### 4. Configure Daily Prompts
+### 5. Configure Daily Prompts
 
 Once the bot is running, go to your Discord server and tell Mai-san where to post:
 
@@ -136,47 +170,57 @@ Once the bot is running, go to your Discord server and tell Mai-san where to pos
 
 That's it! Mai-san will now post a drawing prompt every day at 9:00 AM EST.
 
-Optionally set a different time:
+Optionally set a different time and timezone:
 
 ```
-@Mai-san post prompts at 10:00 AM
+@Mai-san post prompts at 10:00 AM PST
 ```
 
 ## Capabilities
 
-Just @mention Mai-san and talk naturally. Here's what she can currently do:
+Just @mention Mai-san and talk naturally. Here's what she can do:
 
-| What you want      | Example                                          |
-| ------------------ | ------------------------------------------------ |
-| Get today's prompt | "@Mai-san what should I draw today?"             |
-| Change schedule    | "@Mai-san can you post prompts at 10am instead?" |
-| Set prompt channel | "@Mai-san post daily prompts in #art-prompts"    |
-| View history       | "@Mai-san what did we draw last week?"           |
-| Get feedback       | "@Mai-san [attach image] how's my drawing?"      |
+| What you want       | Example                                          |
+| ------------------- | ------------------------------------------------ |
+| Get today's prompt  | "@Mai-san what should I draw today?"             |
+| Change schedule     | "@Mai-san post prompts at 10am PST"              |
+| Set prompt channel  | "@Mai-san post daily prompts in #art-prompts"    |
+| Set theme           | "@Mai-san set theme to dark fantasy"             |
+| View history        | "@Mai-san what did we draw last week?"           |
+| Get feedback        | "@Mai-san [attach image] how's my drawing?"      |
+| Pause prompts       | "@Mai-san pause for a week"                      |
+| Resume prompts      | "@Mai-san resume prompts"                        |
+
+Mai-san also remembers things automatically — your preferences, fun facts you share, and important events in the server.
 
 ## How It Works
 
 1. **Message Handler** — When you @mention Mai-san, your message goes to GPT-5.2
-2. **Function Calling** — GPT-5.2 understands your intent and calls appropriate functions (set channel, set schedule, etc.)
+2. **Function Calling** — GPT-5.2 understands your intent and calls appropriate functions (set channel, set schedule, save memory, etc.)
 3. **Vision** — If you attach an image, GPT-5.2 can see and critique it
-4. **Scheduler** — A background task checks every minute if it's time to post daily prompts
-5. **Database** — All prompts, settings, and conversation history are stored in SQLite
+4. **APScheduler** — Efficient cron-based scheduling that fires at the exact time instead of polling
+5. **Memory System** — Short-term (in-RAM conversation history) + long-term (Supabase) for persistent memories
+6. **Supabase** — All prompts, settings, and memories are stored in Supabase (PostgreSQL)
+
+See [MEMORY_SYSTEM.md](./MEMORY_SYSTEM.md) for a detailed breakdown of how Mai remembers things.
 
 ## Project Structure
 
 ```
 daily-draw-bot/
-├── main.py              # Bot entry, message handler, scheduler
+├── main.py              # Bot entry, message handler, function executor
 ├── bot/                 # All bot modules
+│   ├── config.py        # Centralized configuration constants
 │   ├── personality.py   # Mai's character & function definitions
 │   ├── gpt.py           # OpenAI integration (GPT-5.2)
-│   ├── database.py      # SQLite storage for prompts & settings
+│   ├── database.py      # Supabase storage for prompts, settings, memories
 │   ├── handlers.py      # Function execution handlers
+│   ├── scheduler.py     # APScheduler-based daily prompt scheduling
+│   ├── memory.py        # Short-term memory helpers
 │   └── utils.py         # Image download & utilities
-├── data/
-│   └── mai_san.db       # Database (auto-created)
 ├── assets/
 │   └── Mai-san.png      # Bot avatar
+├── supabase_schema.sql  # Database schema for Supabase setup
 └── requirements.txt     # Dependencies
 ```
 

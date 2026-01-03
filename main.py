@@ -31,9 +31,12 @@ from bot import database as db
 from bot import gpt
 from bot import utils
 from bot import scheduler
+from bot.memory import get_conversation_history, add_to_history
+from bot.config import MAX_FUNCTION_CHAIN_ITERATIONS, MEMORIES_FOR_CONTEXT
 
 # Load environment variables from .env file (DISCORD_TOKEN, OPENAI_API_KEY)
 load_dotenv()
+
 
 # =============================================================================
 # DISCORD CLIENT SETUP
@@ -125,7 +128,9 @@ async def on_message(message: discord.Message):
     
     # Fetch current settings (post time, channel, etc.)
     settings = await db.get_settings(server_id)
-    conversation_history = []  # MVP: no conversation memory
+    
+    # Get short-term conversation history
+    conversation_history = get_conversation_history(server_id)
     
     # ----- STEP 4: Handle image attachments -----
     
@@ -139,44 +144,83 @@ async def on_message(message: discord.Message):
             if base64_url:
                 image_urls.append(base64_url)
     
-    # ----- STEP 5: Call GPT and get response -----
+    # ----- STEP 5: Fetch long-term memories -----
+    
+    # Get relevant memories for context (prioritizes current user + high importance)
+    memories_raw = await db.get_memories_for_context(
+        server_id,
+        current_user=username,
+        limit=MEMORIES_FOR_CONTEXT
+    )
+    long_term_memories = [m["memory"] for m in memories_raw]
+    
+    # ----- STEP 6: Call GPT and get response -----
     
     # Show "typing..." indicator while processing
     async with message.channel.typing():
         # Send message to GPT-5.2 (Mai-san's brain)
-        response_text, function_call = await gpt.chat_with_mai(
+        response_text, function_calls = await gpt.chat_with_mai(
             user_message=user_message,
             username=username,
             conversation_history=conversation_history,
             current_settings=settings,
-            image_urls=image_urls if image_urls else None
+            image_urls=image_urls if image_urls else None,
+            long_term_memories=long_term_memories
         )
         
-        # ----- STEP 6: Execute function if GPT requested one -----
+        # ----- STEP 7: Execute functions (loop for chained calls) -----
         
-        # GPT might decide to call a function like "set_channel" or "set_schedule"
-        # If so, we execute it here and then get GPT's natural language response
-        if function_call:
-            # Execute the function (e.g., save to database, generate prompt)
-            function_result = await execute_function(
-                function_call["name"],
-                function_call["args"],
-                message,
-                settings
-            )
+        # Mai might call functions, see results, then call more functions
+        # e.g., "What was yesterday's prompt?" → get_history → "Make today's similar"
+        # Keep looping until Mai responds with text instead of more function calls
+        all_results = []  # Accumulate results across chains
+        
+        for _ in range(MAX_FUNCTION_CHAIN_ITERATIONS):
+            if not function_calls:
+                break
             
-            # Get Mai's natural response after the function executed
-            # e.g., "Here's your prompt: ..." instead of just the raw data
-            response_text = await gpt.get_mai_response_after_function(
-                function_name=function_call["name"],
-                function_result=function_result,
-                tool_call_id=function_call["tool_call_id"],
-                original_messages=conversation_history,
+            # Execute each function and collect results
+            for fc in function_calls:
+                result = await execute_function(
+                    fc["name"],
+                    fc["args"],
+                    message,
+                    settings
+                )
+                all_results.append({
+                    "name": fc["name"],
+                    "result": result,
+                    "tool_call_id": fc["tool_call_id"]
+                })
+            
+            # Refresh memories (in case save_memory was just called)
+            memories_raw = await db.get_memories_for_context(
+                server_id,
+                current_user=username,
+                limit=MEMORIES_FOR_CONTEXT
+            )
+            long_term_memories = [m["memory"] for m in memories_raw]
+            
+            # Call GPT again with results — might return more function calls or text
+            response_text, function_calls = await gpt.chat_with_mai(
                 user_message=user_message,
-                current_settings=await db.get_settings(server_id)  # Refresh settings
+                username=username,
+                conversation_history=conversation_history,
+                current_settings=await db.get_settings(server_id),  # Refresh settings
+                image_urls=image_urls if image_urls else None,
+                function_result=all_results,
+                long_term_memories=long_term_memories
             )
         
-        # ----- STEP 7: Reply -----
+        # ----- STEP 8: Save to short-term memory -----
+        
+        # Save user message to history
+        add_to_history(server_id, "user", user_message, username=username)
+        
+        # Save Mai's response to history
+        add_to_history(server_id, "assistant", response_text, username="Mai")
+        
+        # ----- STEP 9: Reply -----
         
         # Send the response back to Discord
         await message.reply(response_text)

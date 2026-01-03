@@ -26,6 +26,8 @@ class Function(str, Enum):
     PAUSE_SCHEDULE = "pause_schedule"
     RESUME_SCHEDULE = "resume_schedule"
     GET_HISTORY = "get_history"
+    SAVE_MEMORY = "save_memory"
+    RECALL_MEMORIES = "recall_memories"
 
 
 # =============================================================================
@@ -42,8 +44,12 @@ CHARACTER = (
 # =============================================================================
 
 TOOL_INSTRUCTIONS = (
-    "You can use tools to help manage the art channel. Use them when users ask you to "
-    "set up daily prompts, change the schedule, set the theme, pause or resume prompts, or check history. "
+    "You have tools to manage the art channel: set up the prompt channel, change the schedule, "
+    "set the theme, pause/resume prompts, check history, and manage your long-term memory. "
+    "Use them whenever it would help — whether the user asks directly or you think it'd be useful. "
+    "You can call multiple tools at once. "
+    "Use save_memory to remember important things about users or the server (preferences, fun facts, milestones). "
+    "Use recall_memories when you need context about a user or want to personalize your response."
 )
 
 
@@ -138,6 +144,53 @@ FUNCTIONS = [
                 "days": {
                     "type": "integer",
                     "description": "How many past prompts to retrieve. Default is 7."
+                }
+            },
+            "required": []
+        }
+    },
+    # --- Memory ---
+    {
+        "name": Function.SAVE_MEMORY,
+        "description": "Save something important to long-term memory. Use this to remember user facts, preferences, events, or conversations.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "memory": {
+                    "type": "string",
+                    "description": "What to remember, e.g., 'Alice loves drawing dragons', 'Eric prefers fantasy themes', 'Server hit 100 prompts'"
+                },
+                "about_user": {
+                    "type": "string",
+                    "description": "Optional: the username this memory is about. Leave empty for server-wide memories."
+                },
+                "category": {
+                    "type": "string",
+                    "enum": ["user_fact", "preference", "event", "conversation", "general"],
+                    "description": "Memory category: user_fact (permanent), preference (permanent), event (permanent), conversation (30 days), general (60 days)"
+                },
+                "importance": {
+                    "type": "integer",
+                    "description": "1-5, how important is this? 5=critical/permanent, 1=minor. Defaults based on category."
+                }
+            },
+            "required": ["memory"]
+        }
+    },
+    {
+        "name": Function.RECALL_MEMORIES,
+        "description": "Recall memories from long-term storage. Use this to remember things about a user or the server.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "about_user": {
+                    "type": "string",
+                    "description": "Optional: filter to memories about a specific user."
+                },
+                "category": {
+                    "type": "string",
+                    "enum": ["user_fact", "preference", "event", "conversation", "general"],
+                    "description": "Optional: filter to a specific category of memories."
                 }
             },
             "required": []

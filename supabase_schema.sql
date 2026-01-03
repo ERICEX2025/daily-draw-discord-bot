@@ -25,3 +25,25 @@ CREATE TABLE prompts (
 
 CREATE INDEX idx_prompts_server ON prompts(server_id);
 CREATE INDEX idx_prompts_date ON prompts(created_at DESC);
+
+-- Long-term memories (things Mai decides to remember)
+CREATE TABLE memories (
+    id BIGSERIAL PRIMARY KEY,
+    server_id TEXT NOT NULL,
+    user_id TEXT,  -- Optional: who this memory is about (NULL = server-wide)
+    memory TEXT NOT NULL,  -- "Alice loves drawing dragons"
+    category TEXT DEFAULT 'general',  -- user_fact, preference, event, conversation, general
+    importance INTEGER DEFAULT 3,  -- 1-5, higher = more important (5 = permanent)
+    expires_at TIMESTAMPTZ,  -- NULL = never expires, set based on category
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_memories_server ON memories(server_id);
+CREATE INDEX idx_memories_user ON memories(user_id);
+CREATE INDEX idx_memories_category ON memories(category);
+CREATE INDEX idx_memories_importance ON memories(importance DESC);
+
+-- Migration for existing memories table:
+-- ALTER TABLE memories ADD COLUMN category TEXT DEFAULT 'general';
+-- ALTER TABLE memories ADD COLUMN importance INTEGER DEFAULT 3;
+-- ALTER TABLE memories ADD COLUMN expires_at TIMESTAMPTZ;
