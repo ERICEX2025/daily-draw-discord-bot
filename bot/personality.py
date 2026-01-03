@@ -28,6 +28,8 @@ class Function(str, Enum):
     GET_HISTORY = "get_history"
     SAVE_MEMORY = "save_memory"
     RECALL_MEMORIES = "recall_memories"
+    SEARCH_IMAGES = "search_images"
+    WEB_SEARCH = "web_search"
 
 
 # =============================================================================
@@ -237,6 +239,35 @@ FUNCTIONS = [
                 }
             },
             "required": []
+        }
+    },
+    # --- Search ---
+    {
+        "name": Function.SEARCH_IMAGES,
+        "description": "Search for reference images of characters, objects, or art styles. Use when someone asks what something looks like or needs visual references.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "What to search for, e.g., 'Snorlax pokemon', 'Hori from Horimiya', 'art nouveau style'"
+                }
+            },
+            "required": ["query"]
+        }
+    },
+    {
+        "name": Function.WEB_SEARCH,
+        "description": "Search the web for information. Use for looking up anime/game info, art techniques, or anything you don't know.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "What to search for, e.g., 'trending anime 2026', 'what is isekai genre', 'how to draw dynamic poses'"
+                }
+            },
+            "required": ["query"]
         }
     }
 ]

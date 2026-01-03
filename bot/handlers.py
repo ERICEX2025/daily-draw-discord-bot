@@ -259,6 +259,42 @@ async def handle_recall_memories(server_id: str, args: dict, **_) -> str:
 
 
 # =============================================================================
+# SEARCH HANDLERS
+# =============================================================================
+
+async def handle_search_images(server_id: str, args: dict, settings: dict, message) -> dict:
+    """Search for reference images using DuckDuckGo."""
+    from bot import utils
+    
+    query = args.get("query", "")
+    if not query:
+        return {"error": "No search query provided"}
+    
+    urls = await utils.search_reference_images(query, max_results=3)
+    
+    if not urls:
+        return {"message": f"No images found for '{query}'"}
+    
+    return {"query": query, "images": urls}
+
+
+async def handle_web_search(server_id: str, args: dict, settings: dict, message) -> dict:
+    """Search the web using DuckDuckGo."""
+    from bot import utils
+    
+    query = args.get("query", "")
+    if not query:
+        return {"error": "No search query provided"}
+    
+    results = await utils.web_search(query, max_results=3)
+    
+    if not results:
+        return {"message": f"No results found for '{query}'"}
+    
+    return {"query": query, "results": results}
+
+
+# =============================================================================
 # HANDLER REGISTRY
 # =============================================================================
 
@@ -271,5 +307,7 @@ HANDLERS = {
     Function.GET_HISTORY: handle_get_history,
     Function.SAVE_MEMORY: handle_save_memory,
     Function.RECALL_MEMORIES: handle_recall_memories,
+    Function.SEARCH_IMAGES: handle_search_images,
+    Function.WEB_SEARCH: handle_web_search,
 }
 

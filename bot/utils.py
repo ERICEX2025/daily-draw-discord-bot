@@ -11,13 +11,13 @@ from typing import Optional
 from duckduckgo_search import DDGS
 
 
-async def search_reference_images(query: str, max_results: int = 2) -> list[str]:
+async def search_reference_images(query: str, max_results: int = 3) -> list[str]:
     """
     Search for reference images using DuckDuckGo.
     
     Args:
         query: Search term (e.g., "Snorlax", "Hori from Horimiya")
-        max_results: Maximum number of image URLs to return (1-2)
+        max_results: Maximum number of image URLs to return
         
     Returns:
         List of image URLs
@@ -43,6 +43,38 @@ async def search_reference_images(query: str, max_results: int = 2) -> list[str]
         return []
 
 
+async def web_search(query: str, max_results: int = 3) -> list[dict]:
+    """
+    Search the web using DuckDuckGo.
+    
+    Args:
+        query: Search term (e.g., "trending anime 2026", "what is isekai")
+        max_results: Maximum number of results to return
+        
+    Returns:
+        List of dicts with 'title', 'url', 'body' keys
+    """
+    try:
+        def do_search():
+            with DDGS() as ddgs:
+                results = list(ddgs.text(
+                    query,
+                    max_results=max_results,
+                    safesearch="moderate"
+                ))
+                return [
+                    {"title": r.get("title", ""), "url": r.get("href", ""), "body": r.get("body", "")}
+                    for r in results
+                ]
+        
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, do_search)
+        
+    except Exception as e:
+        print(f"Error searching web for '{query}': {e}")
+        return []
+
+
 async def download_image_as_base64(url: str) -> Optional[str]:
     """
     Download an image from a URL and convert it to a base64 data URL.
@@ -57,7 +89,7 @@ async def download_image_as_base64(url: str) -> Optional[str]:
     Returns:
         A base64 data URL (e.g., "data:image/png;base64,...")
         or None if download failed
-        waht
+        
     Example:
         >>> await download_image_as_base64("https://cdn.discord.com/.../image.png")
         "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgA..."
