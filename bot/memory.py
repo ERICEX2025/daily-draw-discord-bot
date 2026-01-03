@@ -20,16 +20,29 @@ def get_conversation_history(server_id: str) -> list[dict]:
     return short_term_memory.get(server_id, [])
 
 
-def add_to_history(server_id: str, role: str, content: str, username: str = None):
-    """Add a message to conversation history."""
+def add_to_history(server_id: str, role: str, content: str, username: str = None, images: list[str] = None):
+    """
+    Add a message to conversation history.
+    
+    Args:
+        server_id: The server ID
+        role: "user" or "assistant"
+        content: The message text
+        username: Display name of the sender
+        images: Optional list of base64 image URLs for GPT vision
+    """
     if server_id not in short_term_memory:
         short_term_memory[server_id] = []
     
-    short_term_memory[server_id].append({
+    msg = {
         "role": role,
         "content": content,
         "username": username
-    })
+    }
+    if images:
+        msg["images"] = images
+    
+    short_term_memory[server_id].append(msg)
     
     # Trim to max size
     if len(short_term_memory[server_id]) > MAX_SHORT_TERM_MESSAGES:

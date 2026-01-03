@@ -2,12 +2,12 @@
 
 ## Server Info
 
-| Item | Value |
-|------|-------|
+| Item     | Value                    |
+| -------- | ------------------------ |
 | Provider | Oracle Cloud (Free Tier) |
-| OS | Ubuntu 24.04 ARM |
-| IP | 129.213.22.126 |
-| User | ubuntu |
+| OS       | Ubuntu 24.04 ARM         |
+| IP       | 129.213.22.126           |
+| User     | ubuntu                   |
 
 ---
 
@@ -23,14 +23,14 @@ ssh mai-server
 
 ## Bot Management Commands
 
-| Command | What it does |
-|---------|--------------|
-| `sudo systemctl status maibot` | Check if bot is running |
-| `sudo systemctl start maibot` | Start the bot |
-| `sudo systemctl stop maibot` | Stop the bot |
-| `sudo systemctl restart maibot` | Restart the bot |
-| `sudo journalctl -u maibot -f` | View live logs |
-| `sudo journalctl -u maibot --since "1 hour ago"` | View recent logs |
+| Command                                          | What it does            |
+| ------------------------------------------------ | ----------------------- |
+| `sudo systemctl status maibot`                   | Check if bot is running |
+| `sudo systemctl start maibot`                    | Start the bot           |
+| `sudo systemctl stop maibot`                     | Stop the bot            |
+| `sudo systemctl restart maibot`                  | Restart the bot         |
+| `sudo journalctl -u maibot -f`                   | View live logs          |
+| `sudo journalctl -u maibot --since "1 hour ago"` | View recent logs        |
 
 ---
 
@@ -105,6 +105,7 @@ WantedBy=multi-user.target
 ```
 
 If you modify this file, reload systemd:
+
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl restart maibot
@@ -128,12 +129,14 @@ Host mai-server
 ## Troubleshooting
 
 ### Bot not responding?
+
 ```bash
 sudo systemctl status maibot
 sudo journalctl -u maibot --since "10 min ago"
 ```
 
 ### Need to update .env on server?
+
 ```bash
 ssh mai-server
 cd daily-draw-discord-bot
@@ -142,8 +145,9 @@ sudo systemctl restart maibot
 ```
 
 ### Server rebooted?
+
 The bot auto-starts! Just check status:
+
 ```bash
 sudo systemctl status maibot
 ```
-

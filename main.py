@@ -25,6 +25,7 @@ Message Flow:
 import discord
 import os
 import atexit
+import json
 from dotenv import load_dotenv
 
 from bot import database as db
@@ -189,6 +190,7 @@ async def on_message(message: discord.Message):
                 )
                 all_results.append({
                     "name": fc["name"],
+                    "args": fc.get("args", {}),
                     "result": result,
                     "tool_call_id": fc["tool_call_id"]
                 })
@@ -214,8 +216,8 @@ async def on_message(message: discord.Message):
         
         # ----- STEP 8: Save to short-term memory -----
         
-        # Save user message to history
-        add_to_history(server_id, "user", user_message, username=username)
+        # Save user message to history (including any images they shared)
+        add_to_history(server_id, "user", user_message, username=username, images=image_urls if image_urls else None)
         
         # Save Mai's response to history
         add_to_history(server_id, "assistant", response_text, username="Mai")
@@ -223,7 +225,11 @@ async def on_message(message: discord.Message):
         # ----- STEP 9: Reply -----
         
         # Send the response back to Discord
-        await message.reply(response_text)
+        if response_text:
+            await message.reply(response_text)
+        else:
+            # Edge case: GPT kept calling functions without responding
+            await message.reply("...give me a second.")
 
 
 # =============================================================================
@@ -251,15 +257,22 @@ async def execute_function(name: str, args: dict, message: discord.Message, sett
     server_id = str(message.guild.id) if message.guild else str(message.author.id)
     
     handler = HANDLERS.get(name)
-    if handler:
-        return await handler(
-            server_id=server_id,
-            args=args,
-            settings=settings,
-            message=message,
-        )
-    
-    return f"Function '{name}' not recognized"
+    if not handler:
+        return json.dumps({"ok": False, "error": f"Function '{name}' not recognized"})
+
+    result = await handler(
+        server_id=server_id,
+        args=args,
+        settings=settings,
+        message=message,
+    )
+
+    # Always return machine-readable JSON to the model.
+    # Handlers may return str (legacy) or dict/list (preferred).
+    if isinstance(result, (dict, list)):
+        return json.dumps({"ok": True, "data": result})
+
+    return json.dumps({"ok": True, "message": str(result)})
 
 
 # =============================================================================

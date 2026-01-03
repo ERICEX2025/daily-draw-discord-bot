@@ -19,7 +19,7 @@ from typing import Optional
 from datetime import datetime
 from dotenv import load_dotenv
 
-from bot.personality import CHARACTER, TOOL_INSTRUCTIONS, FUNCTIONS, Function
+from bot.personality import CHARACTER, FUNCTIONS, Function
 from bot.config import MODEL, MAX_PROMPT_TOKENS, MAX_CHAT_TOKENS, MAX_SHORT_TERM_MESSAGES
 
 
@@ -91,16 +91,27 @@ async def generate_daily_prompt(
             },
             {
                 "role": "user",
-                "content": f"""It's time to post today's daily drawing prompt for the art channel! The theme is: {theme}. Pick something fun and creative that fits!
+                "content": f"""It's time to post today's daily drawing prompt! The theme is: {theme}.
 
-Come up with a creative prompt (1-2 sentences, specific and evocative).
-Present it to everyone in your voice — maybe add some encouragement, a playful comment, or reference something from recent conversations or memories if it fits naturally.
-Keep it to 2-4 sentences total. Don't force references — only include them if they feel natural.{recent_context}{memories_context}{conversation_context}
+Come up with a SHORT, simple prompt — just a fun concept in a few words. Examples:
+- "Snorlax as an ice cream"
+- "Hori from Horimiya"
+- "A mage who's bad at magic"
+- "Pikachu in a hoodie"
+
+Keep the prompt simple and open to interpretation. Don't over-describe or add too many details.
+
+Present it with a short message in YOUR voice — dry, slightly teasing, maybe a little sarcastic. Something like:
+- "today's prompt: 'a tired swordsman.' ...no, drawing me doesn't count."
+- "here's today's prompt. try not to disappoint me."
+- "prompt's up. 'cozy dragon.' don't overthink it."
+
+Keep it brief (1-2 sentences). Don't be overly enthusiastic or use lots of exclamation points. You're too cool for that.{recent_context}{memories_context}{conversation_context}
 
 Respond with JSON in this exact format:
 {{
-    "prompt": "The drawing prompt itself (just the prompt, no fluff)",
-    "message": "Your full message to post in Discord (including the prompt, with your personality)"
+    "prompt": "The short, simple prompt",
+    "message": "Your brief message including the prompt"
 }}"""
             }
         ],
@@ -182,17 +193,27 @@ Current settings:
     
     # ----- BUILD MESSAGES ARRAY -----
     messages = [
-        {"role": "system", "content": f"{CHARACTER}\n\n{TOOL_INSTRUCTIONS}\n\n{context}"}
+        {"role": "system", "content": f"{CHARACTER}\n\n{context}"}
     ]
     
-    # Add conversation history
+    # Add conversation history (with images if present)
     for msg in conversation_history[-MAX_SHORT_TERM_MESSAGES:]:
         msg_username = msg.get("username", "Unknown")
-        content_with_name = f"{msg_username}: {msg['content']}"
-        messages.append({
-            "role": msg["role"],
-            "content": content_with_name
-        })
+        # Only prefix usernames for user messages.
+        # Prefixing assistant messages with "Mai:" teaches the model to emit name prefixes.
+        if msg.get("role") == "user":
+            content_with_name = f"{msg_username}: {msg['content']}"
+        else:
+            content_with_name = msg["content"]
+        
+        # Check if this message has images attached
+        if msg.get("images"):
+            content = [{"type": "text", "text": content_with_name}]
+            for img_url in msg["images"]:
+                content.append({"type": "image_url", "image_url": {"url": img_url}})
+            messages.append({"role": msg["role"], "content": content})
+        else:
+            messages.append({"role": msg["role"], "content": content_with_name})
     
     # ----- ADD CURRENT USER MESSAGE -----
     user_message_with_name = f"{username}: {user_message}"
@@ -219,7 +240,7 @@ Current settings:
                 {
                     "id": r["tool_call_id"],
                     "type": "function",
-                    "function": {"name": r["name"], "arguments": "{}"}
+                    "function": {"name": r["name"], "arguments": json.dumps(r.get("args", {}))}
                 }
                 for r in results
             ]
@@ -256,4 +277,3 @@ Current settings:
         ]
     
     return message.content, None
-

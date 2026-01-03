@@ -17,11 +17,8 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 import pytz
 from datetime import datetime
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    import discord
-
+import discord
 from bot import database as db
 from bot import gpt
 
@@ -218,13 +215,37 @@ async def post_daily_prompt(server_id: str):
         # Save to database
         await db.save_prompt(server_id, raw_prompt)
         
+        # Search for reference images based on the prompt
+        from bot.utils import search_reference_images, download_image_as_base64
+        reference_urls = await search_reference_images(raw_prompt, max_results=2)
+        
+        # Download images as base64 for GPT memory
+        base64_images = []
+        for url in reference_urls:
+            b64 = await download_image_as_base64(url)
+            if b64:
+                base64_images.append(b64)
+        
         # Send to Discord
         await channel.send(mai_message)
         
-        # Add to short-term memory so Mai knows what she just posted
-        add_to_history(server_id, "assistant", mai_message, username="Mai")
+        # Send reference images as embeds (plain URLs don't auto-embed)
+        if reference_urls:
+            for url in reference_urls:
+                embed = discord.Embed(color=0xE91E63)
+                embed.set_image(url=url)
+                await channel.send(embed=embed)
         
-        print(f"✅ Posted daily prompt to server {server_id}")
+        # Add to short-term memory with actual images so Mai can see them
+        add_to_history(
+            server_id, 
+            "assistant", 
+            mai_message, 
+            username="Mai",
+            images=base64_images if base64_images else None
+        )
+        
+        print(f"✅ Posted daily prompt to server {server_id} (with {len(reference_urls)} reference images)")
         
     except Exception as e:
         print(f"❌ Error posting daily prompt to server {server_id}: {e}")

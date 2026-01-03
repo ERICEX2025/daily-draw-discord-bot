@@ -6,7 +6,41 @@ General-purpose helper functions used across the bot.
 
 import base64
 import httpx
+import asyncio
 from typing import Optional
+from duckduckgo_search import DDGS
+
+
+async def search_reference_images(query: str, max_results: int = 2) -> list[str]:
+    """
+    Search for reference images using DuckDuckGo.
+    
+    Args:
+        query: Search term (e.g., "Snorlax", "Hori from Horimiya")
+        max_results: Maximum number of image URLs to return (1-2)
+        
+    Returns:
+        List of image URLs
+    """
+    try:
+        # Run the sync DuckDuckGo search in a thread pool
+        def do_search():
+            with DDGS() as ddgs:
+                results = list(ddgs.images(
+                    query,
+                    max_results=max_results,
+                    safesearch="moderate"
+                ))
+                return [r["image"] for r in results if r.get("image")]
+        
+        # Run synchronous search in executor to not block async loop
+        loop = asyncio.get_running_loop()
+        urls = await loop.run_in_executor(None, do_search)
+        return urls[:max_results]
+        
+    except Exception as e:
+        print(f"Error searching for images '{query}': {e}")
+        return []
 
 
 async def download_image_as_base64(url: str) -> Optional[str]:

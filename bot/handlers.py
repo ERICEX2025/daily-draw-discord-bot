@@ -120,7 +120,7 @@ async def handle_set_channel(server_id: str, args: dict, message: discord.Messag
             
             return f"Daily prompts will now be posted to #{channel.name}"
         else:
-            return f"Could not find channel '{channel_name}'"
+            return f"Could not find channel '{raw_input}'"
     
     return "Could not set channel (not in a server)"
 
