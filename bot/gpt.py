@@ -163,10 +163,18 @@ Respond with JSON in this exact format:
     
     # Parse the JSON response
     content = response.choices[0].message.content.strip()
-    data = json.loads(content)
     
-    raw_prompt = data["prompt"]
-    mai_message = data["message"]
+    try:
+        data = json.loads(content)
+        raw_prompt = data["prompt"]
+        mai_message = data["message"]
+    except (json.JSONDecodeError, KeyError) as e:
+        # Fallback if JSON parsing fails
+        print(f"⚠️ JSON parse error in generate_daily_prompt: {e}")
+        print(f"   Raw content: {content[:200]}")
+        # Try to extract something usable
+        raw_prompt = "cozy cafe scene"
+        mai_message = "today's prompt: 'cozy cafe scene.' had some trouble thinking, but here you go."
     
     return raw_prompt, mai_message
 
