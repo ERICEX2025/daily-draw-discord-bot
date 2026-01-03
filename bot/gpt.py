@@ -125,10 +125,14 @@ async def generate_daily_prompt(
 Come up with a SHORT, simple prompt — just a fun concept in a few words. Examples:
 - "Snorlax as an ice cream"
 - "Hori from Horimiya"
-- "A mage who's bad at magic"
+- "sunset at a ramen shop"
 - "Pikachu in a hoodie"
+- "two rivals sharing an umbrella"
+- "a sword that's too big"
+- "Tifa in streetwear"
+- "Link taking a nap"
 
-Keep the prompt simple and open to interpretation. Don't over-describe or add too many details.
+Mix it up — sometimes a specific character, sometimes a scene or vibe, sometimes an object. Keep it simple and open to interpretation.
 
 Present it with a short message in YOUR voice — dry, slightly teasing, maybe a little sarcastic. Something like:
 - "today's prompt: 'a tired swordsman.' ...no, drawing me doesn't count."
