@@ -197,10 +197,15 @@ FUNCTIONS = [
     },
     {
         "name": Function.REROLL_PROMPT,
-        "description": "Generate a new daily prompt, replacing today's prompt. Use when users ask to reroll, get a different prompt, or don't like today's prompt.",
+        "description": "Generate a new daily prompt, replacing today's prompt. Use when users ask to reroll, get a different prompt, or don't like today's prompt. If they ask for something specific (e.g., 'reroll with a JJK character'), pass that as the hint.",
         "parameters": {
             "type": "object",
-            "properties": {},
+            "properties": {
+                "hint": {
+                    "type": "string",
+                    "description": "Optional guidance for the new prompt, e.g., 'JJK character', 'something cozy', 'a scene instead'. Leave empty for no preference."
+                }
+            },
             "required": []
         }
     },

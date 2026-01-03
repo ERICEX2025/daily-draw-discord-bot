@@ -147,7 +147,7 @@ async def handle_get_history(server_id: str, args: dict, **_) -> str:
     return f"Recent prompts:\n{history_text}"
 
 
-async def handle_reroll_prompt(server_id: str, **_) -> dict:
+async def handle_reroll_prompt(server_id: str, args: dict, **_) -> dict:
     """
     Reroll today's daily prompt.
     
@@ -162,6 +162,9 @@ async def handle_reroll_prompt(server_id: str, **_) -> dict:
     )
     from bot.memory import get_recent_messages, add_to_history
     from bot.utils import search_reference_images
+    
+    # Get optional hint from user (e.g., "JJK character", "something cozy")
+    hint = args.get("hint")
     
     # Get server settings
     settings = await db.get_settings(server_id)
@@ -187,13 +190,14 @@ async def handle_reroll_prompt(server_id: str, **_) -> dict:
     memories = [m["memory"] for m in memories_raw]
     recent_messages = get_recent_messages(server_id, limit=DAILY_PROMPT_RECENT_MESSAGES)
     
-    # Generate the prompt
+    # Generate the prompt (with optional hint)
     raw_prompt, mai_message = await gpt.generate_daily_prompt(
         past_prompts,
         theme=theme,
         memories=memories if memories else None,
         recent_messages=recent_messages if recent_messages else None,
-        server_id=server_id
+        server_id=server_id,
+        hint=hint
     )
     
     # Save to database

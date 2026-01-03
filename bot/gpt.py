@@ -69,7 +69,8 @@ async def generate_daily_prompt(
     theme: str = "anime and video game inspired",
     memories: Optional[list[str]] = None,
     recent_messages: Optional[list[dict]] = None,
-    server_id: Optional[str] = None  # For Langfuse session tracking
+    server_id: Optional[str] = None,  # For Langfuse session tracking
+    hint: Optional[str] = None  # User guidance like "JJK character", "something cozy"
 ) -> tuple[str, str]:
     """
     Have Mai generate and present a drawing prompt.
@@ -82,6 +83,7 @@ async def generate_daily_prompt(
         theme: The theme/style for prompts
         memories: Long-term memories about the server/users
         recent_messages: Recent conversation messages for context
+        hint: Optional user guidance for the prompt (e.g., "JJK character")
         
     Returns:
         Tuple of (raw_prompt, mai_message)
@@ -109,6 +111,11 @@ async def generate_daily_prompt(
     if recent_messages:
         convo_list = "\n".join(f"- {m.get('username', 'Someone')}: {m['content']}" for m in recent_messages)
         conversation_context = f"\n\nRecent conversations (feel free to reference or play off these):\n{convo_list}"
+    
+    # Build hint context
+    hint_context = ""
+    if hint:
+        hint_context = f"\n\nUser requested: {hint}. Incorporate this into the prompt."
     
     # Simpler system prompt for prompt generation (no tools mentioned)
     prompt_system = """You are Mai Sakurajima, running an art Discord server. Your voice is dry, deadpan, slightly teasing. You're cool and composed—no excessive enthusiasm or exclamation points. Just generate the prompt and a short message. No tool calls, no extra output—just the JSON."""
@@ -151,7 +158,7 @@ Present it with a short message in YOUR voice — dry, slightly teasing, maybe a
 - "here's today's prompt. try not to disappoint me."
 - "prompt's up. 'cozy dragon.' don't overthink it."
 
-Keep it brief (1-2 sentences). Don't be overly enthusiastic or use lots of exclamation points. You're too cool for that.{recent_context}{memories_context}{conversation_context}
+Keep it brief (1-2 sentences). Don't be overly enthusiastic or use lots of exclamation points. You're too cool for that.{recent_context}{memories_context}{conversation_context}{hint_context}
 
 Respond with JSON in this exact format:
 {{
