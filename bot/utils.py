@@ -23,11 +23,14 @@ async def search_reference_images(query: str, max_results: int = 3) -> list[str]
         List of image URLs
     """
     try:
+        # Add "anime fanart" to get better reference images for artists
+        search_query = f"{query} anime fanart"
+        
         # Run the sync DuckDuckGo search in a thread pool
         def do_search():
             with DDGS() as ddgs:
                 results = list(ddgs.images(
-                    query,
+                    search_query,
                     max_results=max_results,
                     safesearch="moderate"
                 ))
