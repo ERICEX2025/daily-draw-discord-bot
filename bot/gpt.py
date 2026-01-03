@@ -154,6 +154,18 @@ Respond with JSON in this exact format:
         max_completion_tokens=MAX_PROMPT_TOKENS
     )
     
+    # Log to Langfuse
+    if _langfuse_enabled and langfuse_context:
+        langfuse_context.update_current_observation(
+            input={"theme": theme, "recent_prompts_count": len(recent_prompts) if recent_prompts else 0},
+            output=response.choices[0].message.content,
+            metadata={
+                "model": MODEL,
+                "prompt_tokens": response.usage.prompt_tokens if response.usage else None,
+                "completion_tokens": response.usage.completion_tokens if response.usage else None,
+            }
+        )
+    
     # Parse the JSON response
     content = response.choices[0].message.content.strip()
     data = json.loads(content)
@@ -326,6 +338,27 @@ Current settings:
     )
     
     message = response.choices[0].message
+    
+    # Log to Langfuse (manually to avoid serialization issues with wrapped client)
+    if _langfuse_enabled and langfuse_context:
+        # Safely extract text content from messages for logging
+        def safe_content(msg):
+            content = msg.get("content")
+            if isinstance(content, list):
+                # Multi-modal content - extract just text parts
+                return [c.get("text", "[image]") if c.get("type") == "text" else "[image]" for c in content]
+            return content
+        
+        langfuse_context.update_current_observation(
+            input=[{"role": m["role"], "content": safe_content(m)} for m in messages],
+            output=message.content if message.content else {"tool_calls": [tc.function.name for tc in (message.tool_calls or [])]},
+            metadata={
+                "model": MODEL,
+                "prompt_tokens": response.usage.prompt_tokens if response.usage else None,
+                "completion_tokens": response.usage.completion_tokens if response.usage else None,
+                "total_tokens": response.usage.total_tokens if response.usage else None,
+            }
+        )
     
     # Check for function calls (can be multiple, or chained after previous calls)
     if message.tool_calls:
