@@ -4,3 +4,5 @@ __pycache__/
 *.pyc
 *.db
 ssh_keys/
+.DS_Store
+.cursor/
