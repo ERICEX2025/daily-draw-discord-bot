@@ -33,28 +33,27 @@ load_dotenv()
 # Check if Langfuse is configured (optional - works without it)
 _langfuse_enabled = bool(os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"))
 
-# Always use the standard OpenAI client (wrapped client has serialization issues)
-from openai import AsyncOpenAI
-
+# Try wrapped client for auto-tracing, fall back to standard client if it fails
 if _langfuse_enabled:
     try:
-        from langfuse import observe, langfuse_context  # v3 API
-        print("🔍 Langfuse observability enabled")
+        from langfuse.openai import AsyncOpenAI  # Wrapped client for auto-tracing
+        from langfuse import observe  # v3 API
+        print("🔍 Langfuse observability enabled (wrapped client)")
     except ImportError as e:
         print(f"⚠️ Langfuse import failed: {e}")
+        from openai import AsyncOpenAI
         def observe(*args, **kwargs):
             def decorator(func):
                 return func
             return decorator
-        langfuse_context = None
         _langfuse_enabled = False
 else:
-    # Create no-op decorator for when Langfuse is disabled
+    # Fall back to regular OpenAI client if Langfuse isn't configured
+    from openai import AsyncOpenAI
     def observe(*args, **kwargs):
         def decorator(func):
             return func
         return decorator
-    langfuse_context = None
     print("📊 Langfuse not configured - observability disabled")
 
 # Create the async OpenAI client
@@ -91,12 +90,8 @@ async def generate_daily_prompt(
         - raw_prompt: Just the prompt text (for saving to database)
         - mai_message: Mai's full presentation (for sending to Discord)
     """
-    # Add session tracking to Langfuse for daily prompts
-    if _langfuse_enabled and langfuse_context:
-        langfuse_context.update_current_trace(
-            session_id=f"daily-prompt-{server_id}" if server_id else "daily-prompt",
-            metadata={"type": "daily_prompt", "theme": theme}
-        )
+    # Session ID for daily prompts
+    session_id = f"daily-prompt-{server_id}" if server_id else "daily-prompt"
     
     # Build context about recent prompts to avoid repeats (with dates)
     if recent_prompts:
@@ -151,20 +146,16 @@ Respond with JSON in this exact format:
             }
         ],
         response_format={"type": "json_object"},
-        max_completion_tokens=MAX_PROMPT_TOKENS
+        max_completion_tokens=MAX_PROMPT_TOKENS,
+        # Langfuse tracking (parsed by wrapped client)
+        name="generate_daily_prompt",
+        metadata={
+            "langfuse_session_id": session_id,
+            "type": "daily_prompt",
+            "theme": theme,
+            "recent_prompts_count": len(recent_prompts) if recent_prompts else 0,
+        }
     )
-    
-    # Log to Langfuse
-    if _langfuse_enabled and langfuse_context:
-        langfuse_context.update_current_observation(
-            input={"theme": theme, "recent_prompts_count": len(recent_prompts) if recent_prompts else 0},
-            output=response.choices[0].message.content,
-            metadata={
-                "model": MODEL,
-                "prompt_tokens": response.usage.prompt_tokens if response.usage else None,
-                "completion_tokens": response.usage.completion_tokens if response.usage else None,
-            }
-        )
     
     # Parse the JSON response
     content = response.choices[0].message.content.strip()
@@ -219,18 +210,8 @@ async def chat_with_mai(
         - If function_calls is None, use response_text directly
         - If function_calls is a list, execute each function first
     """
-    # Add user and session tracking to Langfuse
-    if _langfuse_enabled and langfuse_context:
-        langfuse_context.update_current_trace(
-            user_id=username,
-            session_id=f"server-{server_id}-channel-{channel_id}" if server_id and channel_id else None,
-            metadata={
-                "server_id": server_id,
-                "channel_id": channel_id,
-                "has_images": bool(image_urls),
-                "is_function_followup": bool(function_result),
-            }
-        )
+    # Session ID for grouping conversations
+    session_id = f"server-{server_id}-channel-{channel_id}" if server_id and channel_id else None
     
     # ----- BUILD CONTEXT -----
     # Use the server's configured timezone for accurate time display
@@ -334,31 +315,20 @@ Current settings:
         messages=messages,
         tools=[{"type": "function", "function": f} for f in FUNCTIONS],
         tool_choice="auto",
-        max_completion_tokens=MAX_CHAT_TOKENS
+        max_completion_tokens=MAX_CHAT_TOKENS,
+        # Langfuse tracking (parsed by wrapped client)
+        name="chat_with_mai",
+        metadata={
+            "langfuse_user_id": username,
+            "langfuse_session_id": session_id,
+            "server_id": server_id,
+            "channel_id": channel_id,
+            "has_images": bool(image_urls),
+            "is_function_followup": bool(function_result),
+        }
     )
     
     message = response.choices[0].message
-    
-    # Log to Langfuse (manually to avoid serialization issues with wrapped client)
-    if _langfuse_enabled and langfuse_context:
-        # Safely extract text content from messages for logging
-        def safe_content(msg):
-            content = msg.get("content")
-            if isinstance(content, list):
-                # Multi-modal content - extract just text parts
-                return [c.get("text", "[image]") if c.get("type") == "text" else "[image]" for c in content]
-            return content
-        
-        langfuse_context.update_current_observation(
-            input=[{"role": m["role"], "content": safe_content(m)} for m in messages],
-            output=message.content if message.content else {"tool_calls": [tc.function.name for tc in (message.tool_calls or [])]},
-            metadata={
-                "model": MODEL,
-                "prompt_tokens": response.usage.prompt_tokens if response.usage else None,
-                "completion_tokens": response.usage.completion_tokens if response.usage else None,
-                "total_tokens": response.usage.total_tokens if response.usage else None,
-            }
-        )
     
     # Check for function calls (can be multiple, or chained after previous calls)
     if message.tool_calls:
