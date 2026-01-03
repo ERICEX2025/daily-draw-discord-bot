@@ -1,0 +1,50 @@
+"""
+utils.py — Utility Functions
+
+General-purpose helper functions used across the bot.
+"""
+
+import base64
+import httpx
+from typing import Optional
+
+
+async def download_image_as_base64(url: str) -> Optional[str]:
+    """
+    Download an image from a URL and convert it to a base64 data URL.
+    
+    Discord image URLs expire after a while, so we download the image
+    immediately and convert it to base64. This ensures GPT can see the
+    image even if there's a delay in processing.
+    
+    Args:
+        url: The Discord CDN URL for the image
+        
+    Returns:
+        A base64 data URL (e.g., "data:image/png;base64,...")
+        or None if download failed
+        
+    Example:
+        >>> await download_image_as_base64("https://cdn.discord.com/.../image.png")
+        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgA..."
+    """
+    try:
+        # Use httpx for async HTTP requests
+        async with httpx.AsyncClient() as http_client:
+            response = await http_client.get(url)
+            
+            if response.status_code == 200:
+                # Get the content type (e.g., "image/png")
+                content_type = response.headers.get("content-type", "image/png")
+                
+                # Convert binary image data to base64
+                base64_data = base64.b64encode(response.content).decode("utf-8")
+                
+                # Return as data URL that GPT can use
+                return f"data:{content_type};base64,{base64_data}"
+                
+    except Exception as e:
+        print(f"Error downloading image: {e}")
+    
+    return None
+

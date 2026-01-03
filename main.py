@@ -8,20 +8,29 @@ This is the main file that runs Mai-san. It handles:
 4. Executing functions that GPT requests
 5. Running the daily prompt scheduler
 
-Flow:
+Startup Flow:
+    1. load_dotenv() loads DISCORD_TOKEN and OPENAI_API_KEY from .env
+    2. Discord client is created with message_content intent enabled
+    3. __main__ validates that both env vars exist, then calls bot.run(token)
+    4. on_ready() fires once connected:
+       - Initializes SQLite database (creates tables if needed)
+       - Starts daily_prompt_check background loop (runs every minute)
+       - Prints confirmation message
+
+Message Flow:
     User @mentions bot → on_message() → gpt.chat_with_mai() → 
     execute_function() (if needed) → reply to user
 """
 
 import discord
-from discord.ext import tasks
 import os
-from datetime import datetime
+import atexit
 from dotenv import load_dotenv
-import pytz
 
-import database as db
-import gpt
+from bot import database as db
+from bot import gpt
+from bot import utils
+from bot import scheduler
 
 # Load environment variables from .env file (DISCORD_TOKEN, OPENAI_API_KEY)
 load_dotenv()
@@ -38,9 +47,6 @@ intents.message_content = True  # Required for reading message text
 # Create the Discord client (this is our bot instance)
 bot = discord.Client(intents=intents)
 
-# Timezone for daily prompt scheduling (Eastern Standard Time)
-EST = pytz.timezone("America/New_York")
-
 
 # =============================================================================
 # EVENT: BOT READY
@@ -53,13 +59,19 @@ async def on_ready():
     
     This runs once at startup and:
     1. Initializes the database (creates tables if they don't exist)
-    2. Starts the daily prompt scheduler loop
+    2. Starts the APScheduler-based daily prompt scheduler
     3. Prints a confirmation message
     """
     await db.init_db()  # Create database tables if needed
-    daily_prompt_check.start()  # Start the scheduler loop
+    
+    # Initialize and start APScheduler
+    scheduler.init(bot)
+    await scheduler.start_scheduler()
+    
     print(f"✨ {bot.user} is now online!")
     print(f"🎨 Mai-san is ready to help with your art channel!")
+
+
 
 
 # =============================================================================
@@ -107,11 +119,13 @@ async def on_message(message: discord.Message):
     
     # Get the server ID (or user ID for DMs) to look up settings
     server_id = str(message.guild.id) if message.guild else str(message.author.id)
-    user_id = str(message.author.id)
     
-    # Fetch current settings (post time, theme, etc.) and recent conversation history
+    # Get the user's display name (what GPT will see, not the numeric ID)
+    username = message.author.display_name
+    
+    # Fetch current settings (post time, channel, etc.)
     settings = await db.get_settings(server_id)
-    conversation_history = await db.get_recent_conversation(server_id)
+    conversation_history = []  # MVP: no conversation memory
     
     # ----- STEP 4: Handle image attachments -----
     
@@ -121,7 +135,7 @@ async def on_message(message: discord.Message):
     for attachment in message.attachments:
         if attachment.content_type and attachment.content_type.startswith("image/"):
             # Download the image and convert to base64 for GPT vision
-            base64_url = await gpt.download_image_as_base64(attachment.url)
+            base64_url = await utils.download_image_as_base64(attachment.url)
             if base64_url:
                 image_urls.append(base64_url)
     
@@ -132,6 +146,7 @@ async def on_message(message: discord.Message):
         # Send message to GPT-5.2 (Mai-san's brain)
         response_text, function_call = await gpt.chat_with_mai(
             user_message=user_message,
+            username=username,
             conversation_history=conversation_history,
             current_settings=settings,
             image_urls=image_urls if image_urls else None
@@ -139,7 +154,7 @@ async def on_message(message: discord.Message):
         
         # ----- STEP 6: Execute function if GPT requested one -----
         
-        # GPT might decide to call a function like "generate_prompt" or "set_theme"
+        # GPT might decide to call a function like "set_channel" or "set_schedule"
         # If so, we execute it here and then get GPT's natural language response
         if function_call:
             # Execute the function (e.g., save to database, generate prompt)
@@ -161,11 +176,7 @@ async def on_message(message: discord.Message):
                 current_settings=await db.get_settings(server_id)  # Refresh settings
             )
         
-        # ----- STEP 7: Save conversation and reply -----
-        
-        # Save both messages to database for conversation history
-        await db.save_message(server_id, user_id, "user", user_message)
-        await db.save_message(server_id, user_id, "assistant", response_text)
+        # ----- STEP 7: Reply -----
         
         # Send the response back to Discord
         await message.reply(response_text)
@@ -179,16 +190,11 @@ async def execute_function(name: str, args: dict, message: discord.Message, sett
     """
     Execute a function that GPT decided to call.
     
-    GPT can call these functions based on user requests:
-    - generate_prompt: Create a new drawing prompt
-    - set_theme: Set a theme for upcoming prompts
-    - set_schedule: Change the daily posting time
-    - set_channel: Set which channel gets daily prompts
-    - get_history: Retrieve past prompts
-    - get_current_settings: Show current configuration
+    Dispatches to the appropriate handler function based on the Function enum.
+    All handler implementations live in bot/handlers.py for cleaner separation.
     
     Args:
-        name: The function name GPT wants to call
+        name: The function name GPT wants to call (matches Function enum values)
         args: The arguments GPT provided (parsed from JSON)
         message: The Discord message (for context like server/channel)
         settings: Current server settings
@@ -196,162 +202,20 @@ async def execute_function(name: str, args: dict, message: discord.Message, sett
     Returns:
         A string describing the result (fed back to GPT for natural response)
     """
+    from bot.handlers import HANDLERS
+    
     server_id = str(message.guild.id) if message.guild else str(message.author.id)
     
-    # ----- GENERATE A NEW DRAWING PROMPT -----
-    if name == "generate_prompt":
-        # Use theme from args, or fall back to current server theme
-        theme = args.get("theme") or settings.get("current_theme")
-        
-        # Generate a creative prompt using GPT
-        prompt = await gpt.generate_creative_prompt(theme)
-        
-        # Save the prompt to database
-        await db.save_prompt(server_id, prompt, theme)
-        
-        # Decrement theme days if we're using a limited theme
-        if settings.get("theme_days_remaining", 0) > 0:
-            await db.decrement_theme_days(server_id)
-        
-        return f"Generated prompt: {prompt}"
+    handler = HANDLERS.get(name)
+    if handler:
+        return await handler(
+            server_id=server_id,
+            args=args,
+            settings=settings,
+            message=message,
+        )
     
-    # ----- SET A THEME FOR UPCOMING PROMPTS -----
-    elif name == "set_theme":
-        theme = args["theme"]
-        days = args.get("days", 7)  # Default to 7 days
-        
-        # Update server settings with new theme
-        await db.update_settings(server_id, current_theme=theme, theme_days_remaining=days)
-        
-        return f"Theme set to '{theme}' for {days} days"
-    
-    # ----- SET THE DAILY POSTING TIME -----
-    elif name == "set_schedule":
-        time = args["time"]  # Expected format: "HH:MM" (24-hour)
-        
-        # Update the posting time
-        await db.update_settings(server_id, post_time=time)
-        
-        return f"Daily prompt time set to {time} EST"
-    
-    # ----- SET THE CHANNEL FOR DAILY PROMPTS -----
-    elif name == "set_channel":
-        channel_name = args["channel_name"].lower().replace("#", "")
-        
-        # Find the channel by name in this server
-        guild = message.guild
-        if guild:
-            channel = discord.utils.find(
-                lambda c: c.name.lower() == channel_name, 
-                guild.text_channels
-            )
-            if channel:
-                # Save the channel ID to settings
-                await db.update_settings(server_id, channel_id=str(channel.id))
-                return f"Daily prompts will now be posted to #{channel.name}"
-            else:
-                return f"Could not find channel '{channel_name}'"
-        return "Could not set channel (not in a server)"
-    
-    # ----- GET PROMPT HISTORY -----
-    elif name == "get_history":
-        days = args.get("days", 7)
-        
-        # Fetch recent prompts from database
-        history = await db.get_prompt_history(server_id, days)
-        
-        if not history:
-            return "No prompts found in history"
-        
-        # Format the history as a readable list
-        history_text = "\n".join([
-            f"- {p['created_at'][:10]}: {p['prompt_text']}" + 
-            (f" (theme: {p['theme']})" if p['theme'] else "")
-            for p in history
-        ])
-        return f"Recent prompts:\n{history_text}"
-    
-    # ----- GET CURRENT SETTINGS -----
-    elif name == "get_current_settings":
-        return f"""Current settings:
-- Daily prompt time: {settings.get('post_time', '09:00')} EST
-- Current theme: {settings.get('current_theme') or 'None (random prompts)'}
-- Theme days remaining: {settings.get('theme_days_remaining', 0)}
-- Prompt channel: {'Set' if settings.get('channel_id') else 'Not configured yet'}"""
-    
-    return "Function not recognized"
-
-
-# =============================================================================
-# DAILY PROMPT SCHEDULER
-# =============================================================================
-
-@tasks.loop(minutes=1)
-async def daily_prompt_check():
-    """
-    Background task that runs every minute to check if it's time to post daily prompts.
-    
-    This loop:
-    1. Gets the current time in EST
-    2. Fetches all servers that have a channel configured
-    3. For each server, checks if current time matches their post_time
-    4. If it does AND we haven't posted today, generates and posts a prompt
-    
-    This ensures prompts are posted automatically without user interaction.
-    """
-    # Get current time in EST (e.g., "09:00")
-    now = datetime.now(EST)
-    current_time = now.strftime("%H:%M")
-    
-    # Get all servers that have configured a channel for daily prompts
-    servers = await db.get_all_servers_for_posting()
-    
-    for server_settings in servers:
-        # Check if it's time to post for this server
-        if server_settings["post_time"] == current_time:
-            server_id = server_settings["server_id"]
-            
-            # Check if we already posted today (prevents duplicate posts)
-            todays_prompt = await db.get_todays_prompt(server_id)
-            if todays_prompt:
-                continue  # Already posted today, skip
-            
-            # Get the channel to post in
-            channel_id = server_settings["channel_id"]
-            channel = bot.get_channel(int(channel_id))
-            
-            if channel:
-                # Generate a prompt (with current theme if set)
-                theme = server_settings.get("current_theme")
-                prompt = await gpt.generate_creative_prompt(theme)
-                
-                # Save the prompt to database
-                await db.save_prompt(server_id, prompt, theme)
-                
-                # Decrement theme days if using a limited theme
-                if server_settings.get("theme_days_remaining", 0) > 0:
-                    await db.decrement_theme_days(server_id)
-                
-                # Create a pretty embed message
-                embed = discord.Embed(
-                    title="🎨 Today's Drawing Prompt",
-                    description=prompt,
-                    color=discord.Color.from_rgb(255, 182, 193)  # Soft pink
-                )
-                if theme:
-                    embed.set_footer(text=f"Theme: {theme}")
-                
-                # Send the prompt to the channel
-                await channel.send(embed=embed)
-
-
-@daily_prompt_check.before_loop
-async def before_daily_check():
-    """
-    Runs once before the daily_prompt_check loop starts.
-    Waits until the bot is fully connected to Discord before starting.
-    """
-    await bot.wait_until_ready()
+    return f"Function '{name}' not recognized"
 
 
 # =============================================================================
@@ -364,7 +228,8 @@ if __name__ == "__main__":
     
     It:
     1. Validates that required environment variables exist
-    2. Starts the bot and connects to Discord
+    2. Registers cleanup handlers for graceful shutdown
+    3. Starts the bot and connects to Discord
     """
     # Get the Discord token from environment variables
     token = os.getenv("DISCORD_TOKEN")
@@ -376,6 +241,10 @@ if __name__ == "__main__":
     if not os.getenv("OPENAI_API_KEY"):
         print("❌ Error: OPENAI_API_KEY not found in .env file")
         exit(1)
+    
+    # Register graceful shutdown handler
+    # This runs when the program exits (Ctrl+C, errors, etc.)
+    atexit.register(scheduler.shutdown)
     
     # Start the bot! This blocks forever (until you Ctrl+C)
     bot.run(token)
