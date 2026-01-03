@@ -90,9 +90,6 @@ async def generate_daily_prompt(
         - raw_prompt: Just the prompt text (for saving to database)
         - mai_message: Mai's full presentation (for sending to Discord)
     """
-    # Session ID for daily prompts
-    session_id = f"daily-prompt-{server_id}" if server_id else "daily-prompt"
-    
     # Build context about recent prompts to avoid repeats (with dates)
     if recent_prompts:
         prompt_list = "\n".join(f"- {p['date']}: {p['prompt']}" for p in recent_prompts)
@@ -232,9 +229,6 @@ async def chat_with_mai(
         - If function_calls is None, use response_text directly
         - If function_calls is a list, execute each function first
     """
-    # Session ID for grouping conversations
-    session_id = f"server-{server_id}-channel-{channel_id}" if server_id and channel_id else None
-    
     # ----- BUILD CONTEXT -----
     # Use the server's configured timezone for accurate time display
     import pytz

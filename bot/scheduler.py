@@ -25,24 +25,30 @@ from bot import gpt
 
 # Import Langfuse for tracing (if configured and Python < 3.13)
 import sys
+from contextlib import nullcontext
+
 _langfuse_enabled = (
     bool(os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"))
     and sys.version_info < (3, 13)  # Disable on Python 3.13+ due to serialization bug
 )
 if _langfuse_enabled:
     try:
-        from langfuse import observe
+        from langfuse import observe, propagate_attributes
     except ImportError:
         def observe(*args, **kwargs):
             def decorator(func):
                 return func
             return decorator
+        def propagate_attributes(**kwargs):
+            return nullcontext()
         _langfuse_enabled = False
 else:
     def observe(*args, **kwargs):
         def decorator(func):
             return func
         return decorator
+    def propagate_attributes(**kwargs):
+        return nullcontext()
 
 # Timezone for scheduling (can be made per-server in the future)
 EST = pytz.timezone("America/New_York")
@@ -228,13 +234,19 @@ async def post_daily_prompt(server_id: str):
         # Get theme from settings (defaults to "anime and video game inspired")
         theme = settings.get("theme", "anime and video game inspired")
         
-        raw_prompt, mai_message = await gpt.generate_daily_prompt(
-            past_prompts,
-            theme=theme,
-            memories=memories if memories else None,
-            recent_messages=recent_messages if recent_messages else None,
-            server_id=server_id
-        )
+        # Track in Langfuse with session for scheduled prompts
+        with propagate_attributes(
+            user_id="scheduler",
+            session_id=f"daily-prompt-{server_id}",
+            metadata={"server_id": server_id, "channel_id": channel_id}
+        ):
+            raw_prompt, mai_message = await gpt.generate_daily_prompt(
+                past_prompts,
+                theme=theme,
+                memories=memories if memories else None,
+                recent_messages=recent_messages if recent_messages else None,
+                server_id=server_id
+            )
         
         # Save to database
         await db.save_prompt(server_id, raw_prompt)
