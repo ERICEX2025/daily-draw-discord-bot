@@ -14,7 +14,6 @@ Reference: https://cookbook.openai.com/examples/gpt-5/gpt-5-2_prompting_guide
 
 import os
 import json
-from openai import AsyncOpenAI
 from typing import Optional
 from datetime import datetime
 from dotenv import load_dotenv
@@ -28,8 +27,28 @@ from bot.config import MODEL, MAX_PROMPT_TOKENS, MAX_CHAT_TOKENS, MAX_SHORT_TERM
 load_dotenv()
 
 # =============================================================================
-# OPENAI CLIENT SETUP
+# OPENAI CLIENT SETUP (with Langfuse Observability)
 # =============================================================================
+
+# Check if Langfuse is configured (optional - works without it)
+_langfuse_enabled = bool(os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"))
+
+if _langfuse_enabled:
+    # Use Langfuse's wrapped AsyncOpenAI client for automatic tracing
+    # This captures all API calls, tokens, latency, and costs
+    from langfuse.openai import AsyncOpenAI
+    from langfuse.decorators import observe, langfuse_context
+    print("🔍 Langfuse observability enabled")
+else:
+    # Fall back to regular OpenAI client if Langfuse isn't configured
+    from openai import AsyncOpenAI
+    # Create no-op decorator for when Langfuse is disabled
+    def observe(*args, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
+    langfuse_context = None
+    print("📊 Langfuse not configured - observability disabled")
 
 # Create the async OpenAI client
 # AsyncOpenAI is used because Discord.py is async (non-blocking)
@@ -40,11 +59,13 @@ client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # PROMPT GENERATION
 # =============================================================================
 
+@observe(name="generate_daily_prompt")
 async def generate_daily_prompt(
     recent_prompts: Optional[list[dict]] = None,
     theme: str = "anime and video game inspired",
     memories: Optional[list[str]] = None,
-    recent_messages: Optional[list[dict]] = None
+    recent_messages: Optional[list[dict]] = None,
+    server_id: Optional[str] = None  # For Langfuse session tracking
 ) -> tuple[str, str]:
     """
     Have Mai generate and present a drawing prompt.
@@ -63,6 +84,18 @@ async def generate_daily_prompt(
         - raw_prompt: Just the prompt text (for saving to database)
         - mai_message: Mai's full presentation (for sending to Discord)
     """
+    # Add Langfuse metadata for filtering/debugging
+    if _langfuse_enabled and langfuse_context:
+        langfuse_context.update_current_trace(
+            session_id=f"daily-prompt-{server_id}" if server_id else None,
+            metadata={
+                "type": "daily_prompt",
+                "theme": theme,
+                "recent_prompts_count": len(recent_prompts) if recent_prompts else 0,
+                "memories_count": len(memories) if memories else 0,
+            }
+        )
+    
     # Build context about recent prompts to avoid repeats (with dates)
     if recent_prompts:
         prompt_list = "\n".join(f"- {p['date']}: {p['prompt']}" for p in recent_prompts)
@@ -133,6 +166,7 @@ Respond with JSON in this exact format:
 # MAIN CHAT FUNCTION
 # =============================================================================
 
+@observe(name="chat_with_mai")
 async def chat_with_mai(
     user_message: str,
     username: str,
@@ -140,7 +174,9 @@ async def chat_with_mai(
     current_settings: dict,
     image_urls: Optional[list[str]] = None,
     function_result: Optional[dict] = None,  # For post-function responses
-    long_term_memories: Optional[list[str]] = None  # Recent memories to inject
+    long_term_memories: Optional[list[str]] = None,  # Recent memories to inject
+    server_id: Optional[str] = None,  # For Langfuse session tracking
+    channel_id: Optional[str] = None  # For Langfuse session tracking
 ) -> tuple[str, Optional[dict]]:
     """
     Main function to chat with Mai-san.
@@ -169,6 +205,29 @@ async def chat_with_mai(
         - If function_calls is None, use response_text directly
         - If function_calls is a list, execute each function first
     """
+    # Add Langfuse metadata for filtering/debugging in the UI
+    if _langfuse_enabled and langfuse_context:
+        langfuse_context.update_current_trace(
+            user_id=username,
+            session_id=f"server-{server_id}-channel-{channel_id}" if server_id else None,
+            metadata={
+                "type": "chat",
+                "has_images": bool(image_urls),
+                "image_count": len(image_urls) if image_urls else 0,
+                "is_function_followup": bool(function_result),
+                "history_length": len(conversation_history),
+                "memories_count": len(long_term_memories) if long_term_memories else 0,
+                "theme": current_settings.get("theme"),
+            }
+        )
+        # Log the input for easy debugging
+        langfuse_context.update_current_observation(
+            input={
+                "user_message": user_message,
+                "username": username,
+                "memories": long_term_memories,
+            }
+        )
     
     # ----- BUILD CONTEXT -----
     # Use the server's configured timezone for accurate time display

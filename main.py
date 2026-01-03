@@ -35,6 +35,17 @@ from bot import scheduler
 from bot.memory import get_conversation_history, add_to_history
 from bot.config import MAX_FUNCTION_CHAIN_ITERATIONS, MEMORIES_FOR_CONTEXT
 
+# Import Langfuse for tracing (if configured)
+_langfuse_enabled = bool(os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"))
+if _langfuse_enabled:
+    from langfuse.decorators import observe, langfuse_context
+else:
+    def observe(*args, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
+    langfuse_context = None
+
 # Load environment variables from .env file (DISCORD_TOKEN, OPENAI_API_KEY)
 load_dotenv()
 
@@ -157,6 +168,9 @@ async def on_message(message: discord.Message):
     
     # ----- STEP 6: Call GPT and get response -----
     
+    # Get channel ID for session tracking
+    channel_id = str(message.channel.id)
+    
     # Show "typing..." indicator while processing
     async with message.channel.typing():
         # Send message to GPT-5.2 (Mai-san's brain)
@@ -166,7 +180,9 @@ async def on_message(message: discord.Message):
             conversation_history=conversation_history,
             current_settings=settings,
             image_urls=image_urls if image_urls else None,
-            long_term_memories=long_term_memories
+            long_term_memories=long_term_memories,
+            server_id=server_id,
+            channel_id=channel_id
         )
         
         # ----- STEP 7: Execute functions (loop for chained calls) -----
@@ -211,7 +227,9 @@ async def on_message(message: discord.Message):
                 current_settings=await db.get_settings(server_id),  # Refresh settings
                 image_urls=image_urls if image_urls else None,
                 function_result=all_results,
-                long_term_memories=long_term_memories
+                long_term_memories=long_term_memories,
+                server_id=server_id,
+                channel_id=channel_id
             )
         
         # ----- STEP 8: Save to short-term memory -----
@@ -236,6 +254,7 @@ async def on_message(message: discord.Message):
 # FUNCTION EXECUTOR
 # =============================================================================
 
+@observe(name="execute_function")
 async def execute_function(name: str, args: dict, message: discord.Message, settings: dict) -> str:
     """
     Execute a function that GPT decided to call.
@@ -252,6 +271,13 @@ async def execute_function(name: str, args: dict, message: discord.Message, sett
     Returns:
         A string describing the result (fed back to GPT for natural response)
     """
+    # Log function call details to Langfuse
+    if _langfuse_enabled and langfuse_context:
+        langfuse_context.update_current_observation(
+            input={"function_name": name, "args": args},
+            metadata={"type": "tool_execution"}
+        )
+    
     from bot.handlers import HANDLERS
     
     server_id = str(message.guild.id) if message.guild else str(message.author.id)

@@ -13,6 +13,7 @@ Benefits over the polling approach:
 - Dynamic: Easy to add/remove/reschedule jobs at runtime
 """
 
+import os
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 import pytz
@@ -21,6 +22,17 @@ from datetime import datetime
 import discord
 from bot import database as db
 from bot import gpt
+
+# Import Langfuse for tracing (if configured)
+_langfuse_enabled = bool(os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"))
+if _langfuse_enabled:
+    from langfuse.decorators import observe, langfuse_context
+else:
+    def observe(*args, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
+    langfuse_context = None
 
 # Timezone for scheduling (can be made per-server in the future)
 EST = pytz.timezone("America/New_York")
@@ -137,12 +149,23 @@ def shutdown():
         print("📅 Scheduler shut down gracefully")
 
 
+@observe(name="post_daily_prompt")
 async def post_daily_prompt(server_id: str):
     """
     Post the daily prompt for a single server.
     
     This is the job function that APScheduler calls at the scheduled time.
     """
+    # Add Langfuse metadata for the scheduled job
+    if _langfuse_enabled and langfuse_context:
+        langfuse_context.update_current_trace(
+            session_id=f"daily-prompt-{server_id}",
+            metadata={
+                "type": "scheduled_daily_prompt",
+                "server_id": server_id,
+            }
+        )
+    
     try:
         # Get server settings first to check pause status
         settings = await db.get_settings(server_id)
@@ -209,7 +232,8 @@ async def post_daily_prompt(server_id: str):
             past_prompts,
             theme=theme,
             memories=memories if memories else None,
-            recent_messages=recent_messages if recent_messages else None
+            recent_messages=recent_messages if recent_messages else None,
+            server_id=server_id
         )
         
         # Save to database

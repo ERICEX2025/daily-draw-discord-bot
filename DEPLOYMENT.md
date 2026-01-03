@@ -144,6 +144,39 @@ nano .env
 sudo systemctl restart maibot
 ```
 
+---
+
+## Environment Variables
+
+| Variable              | Required | Description                                             |
+| --------------------- | -------- | ------------------------------------------------------- |
+| `DISCORD_TOKEN`       | Yes      | Discord bot token                                       |
+| `OPENAI_API_KEY`      | Yes      | OpenAI API key                                          |
+| `SUPABASE_URL`        | Yes      | Supabase project URL                                    |
+| `SUPABASE_KEY`        | Yes      | Supabase anon/service key                               |
+| `LANGFUSE_PUBLIC_KEY` | No       | Langfuse public key (for observability)                 |
+| `LANGFUSE_SECRET_KEY` | No       | Langfuse secret key (for observability)                 |
+| `LANGFUSE_HOST`       | No       | Langfuse host URL (default: https://cloud.langfuse.com) |
+
+### Langfuse Setup (Optional)
+
+Langfuse provides observability into all AI calls — see conversations, tool calls, token usage, and costs in a web UI.
+
+1. Create a free account at [langfuse.com](https://langfuse.com)
+2. Create a new project
+3. Go to Settings → API Keys and create a new key pair
+4. Add to your `.env`:
+
+```bash
+LANGFUSE_PUBLIC_KEY=pk-lf-...
+LANGFUSE_SECRET_KEY=sk-lf-...
+# Optional: for self-hosted Langfuse
+# LANGFUSE_HOST=https://your-langfuse-instance.com
+```
+
+5. Restart the bot — you'll see "🔍 Langfuse observability enabled" in the logs
+6. View traces at [cloud.langfuse.com](https://cloud.langfuse.com)
+
 ### Server rebooted?
 
 The bot auto-starts! Just check status:
