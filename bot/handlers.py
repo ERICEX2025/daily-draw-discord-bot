@@ -72,17 +72,33 @@ async def handle_set_channel(server_id: str, args: dict, message: discord.Messag
     """
     Set which channel daily prompts should be posted to.
     
-    Looks up the channel by name in the current guild.
+    Looks up the channel by name or ID in the current guild.
+    Handles Discord channel mentions like <#123456789>.
     Also creates a scheduler job if this is the first channel setup.
     """
-    channel_name = args["channel_name"].lower().replace("#", "")
+    import re
+    
+    raw_input = args["channel_name"]
     
     guild = message.guild
     if guild:
-        channel = discord.utils.find(
-            lambda c: c.name.lower() == channel_name, 
-            guild.text_channels
-        )
+        channel = None
+        
+        # Check if it's a channel mention format: <#123456789>
+        mention_match = re.match(r'<#(\d+)>', raw_input)
+        if mention_match:
+            channel_id = int(mention_match.group(1))
+            channel = guild.get_channel(channel_id)
+        # Check if it's just a raw ID
+        elif raw_input.isdigit():
+            channel = guild.get_channel(int(raw_input))
+        # Otherwise, treat it as a channel name
+        else:
+            channel_name = raw_input.lower().replace("#", "").strip()
+            channel = discord.utils.find(
+                lambda c: c.name.lower() == channel_name, 
+                guild.text_channels
+            )
         if channel:
             await db.update_settings(server_id, channel_id=str(channel.id))
             
