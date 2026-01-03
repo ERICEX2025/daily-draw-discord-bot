@@ -23,8 +23,12 @@ import discord
 from bot import database as db
 from bot import gpt
 
-# Import Langfuse for tracing (if configured)
-_langfuse_enabled = bool(os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"))
+# Import Langfuse for tracing (if configured and Python < 3.13)
+import sys
+_langfuse_enabled = (
+    bool(os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"))
+    and sys.version_info < (3, 13)  # Disable on Python 3.13+ due to serialization bug
+)
 if _langfuse_enabled:
     try:
         from langfuse import observe

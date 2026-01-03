@@ -35,8 +35,12 @@ from bot import scheduler
 from bot.memory import get_conversation_history, add_to_history
 from bot.config import MAX_FUNCTION_CHAIN_ITERATIONS, MEMORIES_FOR_CONTEXT
 
-# Import Langfuse for tracing (if configured)
-_langfuse_enabled = bool(os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"))
+# Import Langfuse for tracing (if configured and Python < 3.13)
+import sys
+_langfuse_enabled = (
+    bool(os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"))
+    and sys.version_info < (3, 13)  # Disable on Python 3.13+ due to serialization bug
+)
 if _langfuse_enabled:
     try:
         from langfuse import observe
