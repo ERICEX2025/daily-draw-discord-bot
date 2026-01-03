@@ -8,7 +8,7 @@ import base64
 import httpx
 import asyncio
 from typing import Optional
-from duckduckgo_search import DDGS
+from ddgs import DDGS
 
 
 async def search_reference_images(query: str, max_results: int = 3) -> list[str]:
