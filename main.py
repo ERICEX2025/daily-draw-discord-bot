@@ -226,6 +226,7 @@ async def _handle_mention(message: discord.Message):
             # Keep looping until Mai responds with text instead of more function calls
             all_results = []  # Accumulate results across chains
             pending_images = []  # Images to send after Mai's text response
+            direct_response = None  # If a handler returns _direct_response, use it directly
             
             for _ in range(MAX_FUNCTION_CHAIN_ITERATIONS):
                 if not function_calls:
@@ -240,11 +241,17 @@ async def _handle_mention(message: discord.Message):
                         settings
                     )
                     
-                    # Check for pending images in the result
+                    # Check for special keys in the result
                     try:
                         result_data = json.loads(result)
-                        if result_data.get("ok") and result_data.get("data", {}).get("_pending_images"):
-                            pending_images.append(result_data["data"]["_pending_images"])
+                        if result_data.get("ok") and result_data.get("data"):
+                            data = result_data["data"]
+                            # Check for pending images
+                            if data.get("_pending_images"):
+                                pending_images.append(data["_pending_images"])
+                            # Check for direct response (skip GPT, use this directly)
+                            if data.get("_direct_response"):
+                                direct_response = data["_direct_response"]
                     except:
                         pass
                     
@@ -254,6 +261,12 @@ async def _handle_mention(message: discord.Message):
                         "result": result,
                         "tool_call_id": fc["tool_call_id"]
                     })
+                
+                # If we got a direct response, use it and stop the loop
+                if direct_response:
+                    response_text = direct_response
+                    function_calls = None
+                    break
                 
                 # Refresh memories (in case save_memory was just called)
                 memories_raw = await db.get_memories_for_context(

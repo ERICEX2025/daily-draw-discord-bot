@@ -147,32 +147,69 @@ async def handle_get_history(server_id: str, args: dict, **_) -> str:
     return f"Recent prompts:\n{history_text}"
 
 
-async def handle_reroll_prompt(server_id: str, **_) -> str:
+async def handle_reroll_prompt(server_id: str, **_) -> dict:
     """
     Reroll today's daily prompt.
     
-    Deletes the current prompt for today (if any) and generates a new one
-    by calling the existing post_daily_prompt function.
+    Deletes the current prompt for today (if any) and generates a new one.
+    Returns _direct_response so main.py sends this instead of asking GPT.
     """
-    # Get server settings to check channel and timezone
+    from bot import gpt
+    from bot.config import (
+        RECENT_PROMPTS_FOR_GENERATION,
+        DAILY_PROMPT_MEMORIES,
+        DAILY_PROMPT_RECENT_MESSAGES,
+    )
+    from bot.memory import get_recent_messages, add_to_history
+    from bot.utils import search_reference_images
+    
+    # Get server settings
     settings = await db.get_settings(server_id)
     server_tz = settings.get("timezone", "America/New_York")
     channel_id = settings.get("channel_id")
+    theme = settings.get("theme", "anime and video game inspired")
     
     if not channel_id:
-        return "No channel configured for daily prompts. Set one first."
+        return {"error": "No channel configured for daily prompts. Set one first."}
     
-    # Delete today's prompt so post_daily_prompt won't skip
+    # Delete today's prompt
     await db.delete_todays_prompt(server_id, server_tz)
     
-    # Reuse the existing scheduler function (posts to channel automatically)
-    await scheduler.post_daily_prompt(server_id)
+    # Get recent prompts to avoid repeats
+    recent_history = await db.get_prompt_history(server_id, limit=RECENT_PROMPTS_FOR_GENERATION)
+    past_prompts = [
+        {"date": p["created_at"][:10], "prompt": p["prompt_text"]}
+        for p in recent_history
+    ]
     
-    # Get the prompt that was just posted so GPT knows what it was
-    new_prompt = await db.get_todays_prompt(server_id, server_tz)
-    prompt_text = new_prompt["prompt_text"] if new_prompt else "unknown"
+    # Get memories and recent messages for context
+    memories_raw = await db.get_memories(server_id, limit=DAILY_PROMPT_MEMORIES)
+    memories = [m["memory"] for m in memories_raw]
+    recent_messages = get_recent_messages(server_id, limit=DAILY_PROMPT_RECENT_MESSAGES)
     
-    return f"Done—new prompt '{prompt_text}' has been posted to the channel. No need to repeat it."
+    # Generate the prompt
+    raw_prompt, mai_message = await gpt.generate_daily_prompt(
+        past_prompts,
+        theme=theme,
+        memories=memories if memories else None,
+        recent_messages=recent_messages if recent_messages else None,
+        server_id=server_id
+    )
+    
+    # Save to database
+    await db.save_prompt(server_id, raw_prompt)
+    
+    # Add to conversation history
+    add_to_history(server_id, "assistant", mai_message, username="Mai")
+    
+    # Get reference images
+    reference_urls = await search_reference_images(raw_prompt, max_results=2)
+    
+    # Return direct response — main.py will send this instead of calling GPT
+    return {
+        "_direct_response": mai_message,
+        "_pending_images": {"query": raw_prompt, "urls": reference_urls} if reference_urls else None
+    }
 
 
 async def handle_pause_schedule(server_id: str, args: dict, **_) -> str:
