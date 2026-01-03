@@ -171,7 +171,19 @@ async def chat_with_mai(
     """
     
     # ----- BUILD CONTEXT -----
-    now = datetime.now()
+    # Use the server's configured timezone for accurate time display
+    import pytz
+    server_tz_name = current_settings.get('timezone', 'America/New_York')
+    try:
+        server_tz = pytz.timezone(server_tz_name)
+    except pytz.UnknownTimeZoneError:
+        server_tz = pytz.timezone('America/New_York')
+        server_tz_name = 'America/New_York'
+    
+    now = datetime.now(server_tz)
+    
+    # Format timezone for display (e.g., "America/New_York" -> "EST" or "EDT")
+    tz_abbrev = now.strftime('%Z')  # Gets "EST", "PST", "EDT", etc.
     
     paused_until = current_settings.get('paused_until')
     pause_status = f"Paused until {paused_until[:10]}" if paused_until else "Active"
@@ -183,9 +195,9 @@ async def chat_with_mai(
         memories_section = f"\n\nThings you remember:\n{memories_text}"
     
     context = f"""
-Current date/time: {now.strftime('%A, %B %d, %Y at %I:%M %p')} EST
+Current date/time: {now.strftime('%A, %B %d, %Y at %I:%M %p')} {tz_abbrev}
 Current settings:
-- Daily prompt time: {current_settings.get('post_time', '09:00')} EST
+- Daily prompt time: {current_settings.get('post_time', '09:00')} {tz_abbrev}
 - Prompt channel: {'Configured' if current_settings.get('channel_id') else 'Not set yet'}
 - Theme: {current_settings.get('theme', 'anime and video game inspired')}
 - Status: {pause_status}{memories_section}

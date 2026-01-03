@@ -57,7 +57,7 @@ async def download_image_as_base64(url: str) -> Optional[str]:
     Returns:
         A base64 data URL (e.g., "data:image/png;base64,...")
         or None if download failed
-        
+        waht
     Example:
         >>> await download_image_as_base64("https://cdn.discord.com/.../image.png")
         "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgA..."
