@@ -4,5 +4,8 @@ __pycache__/
 *.pyc
 *.db
 ssh_keys/
+
+# Editor/OS files
 .DS_Store
 .cursor/
+.vscode/
