@@ -26,13 +26,19 @@ from bot import gpt
 # Import Langfuse for tracing (if configured)
 _langfuse_enabled = bool(os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"))
 if _langfuse_enabled:
-    from langfuse.decorators import observe, langfuse_context
+    try:
+        from langfuse import observe
+    except ImportError:
+        def observe(*args, **kwargs):
+            def decorator(func):
+                return func
+            return decorator
+        _langfuse_enabled = False
 else:
     def observe(*args, **kwargs):
         def decorator(func):
             return func
         return decorator
-    langfuse_context = None
 
 # Timezone for scheduling (can be made per-server in the future)
 EST = pytz.timezone("America/New_York")
@@ -156,16 +162,6 @@ async def post_daily_prompt(server_id: str):
     
     This is the job function that APScheduler calls at the scheduled time.
     """
-    # Add Langfuse metadata for the scheduled job
-    if _langfuse_enabled and langfuse_context:
-        langfuse_context.update_current_trace(
-            session_id=f"daily-prompt-{server_id}",
-            metadata={
-                "type": "scheduled_daily_prompt",
-                "server_id": server_id,
-            }
-        )
-    
     try:
         # Get server settings first to check pause status
         settings = await db.get_settings(server_id)

@@ -38,13 +38,19 @@ from bot.config import MAX_FUNCTION_CHAIN_ITERATIONS, MEMORIES_FOR_CONTEXT
 # Import Langfuse for tracing (if configured)
 _langfuse_enabled = bool(os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"))
 if _langfuse_enabled:
-    from langfuse.decorators import observe, langfuse_context
+    try:
+        from langfuse import observe
+    except ImportError:
+        def observe(*args, **kwargs):
+            def decorator(func):
+                return func
+            return decorator
+        _langfuse_enabled = False
 else:
     def observe(*args, **kwargs):
         def decorator(func):
             return func
         return decorator
-    langfuse_context = None
 
 # Load environment variables from .env file (DISCORD_TOKEN, OPENAI_API_KEY)
 load_dotenv()
@@ -271,13 +277,6 @@ async def execute_function(name: str, args: dict, message: discord.Message, sett
     Returns:
         A string describing the result (fed back to GPT for natural response)
     """
-    # Log function call details to Langfuse
-    if _langfuse_enabled and langfuse_context:
-        langfuse_context.update_current_observation(
-            input={"function_name": name, "args": args},
-            metadata={"type": "tool_execution"}
-        )
-    
     from bot.handlers import HANDLERS
     
     server_id = str(message.guild.id) if message.guild else str(message.author.id)

@@ -34,11 +34,21 @@ load_dotenv()
 _langfuse_enabled = bool(os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"))
 
 if _langfuse_enabled:
-    # Use Langfuse's wrapped AsyncOpenAI client for automatic tracing
-    # This captures all API calls, tokens, latency, and costs
-    from langfuse.openai import AsyncOpenAI
-    from langfuse.decorators import observe, langfuse_context
-    print("🔍 Langfuse observability enabled")
+    try:
+        # Use Langfuse's wrapped AsyncOpenAI client for automatic tracing
+        # This captures all API calls, tokens, latency, and costs
+        from langfuse.openai import AsyncOpenAI
+        from langfuse import observe, langfuse_context  # v3 API
+        print("🔍 Langfuse observability enabled")
+    except ImportError as e:
+        print(f"⚠️ Langfuse import failed: {e}")
+        from openai import AsyncOpenAI
+        def observe(*args, **kwargs):
+            def decorator(func):
+                return func
+            return decorator
+        langfuse_context = None
+        _langfuse_enabled = False
 else:
     # Fall back to regular OpenAI client if Langfuse isn't configured
     from openai import AsyncOpenAI
@@ -84,16 +94,11 @@ async def generate_daily_prompt(
         - raw_prompt: Just the prompt text (for saving to database)
         - mai_message: Mai's full presentation (for sending to Discord)
     """
-    # Add Langfuse metadata for filtering/debugging
+    # Add session tracking to Langfuse for daily prompts
     if _langfuse_enabled and langfuse_context:
         langfuse_context.update_current_trace(
-            session_id=f"daily-prompt-{server_id}" if server_id else None,
-            metadata={
-                "type": "daily_prompt",
-                "theme": theme,
-                "recent_prompts_count": len(recent_prompts) if recent_prompts else 0,
-                "memories_count": len(memories) if memories else 0,
-            }
+            session_id=f"daily-prompt-{server_id}" if server_id else "daily-prompt",
+            metadata={"type": "daily_prompt", "theme": theme}
         )
     
     # Build context about recent prompts to avoid repeats (with dates)
@@ -205,27 +210,16 @@ async def chat_with_mai(
         - If function_calls is None, use response_text directly
         - If function_calls is a list, execute each function first
     """
-    # Add Langfuse metadata for filtering/debugging in the UI
+    # Add user and session tracking to Langfuse
     if _langfuse_enabled and langfuse_context:
         langfuse_context.update_current_trace(
             user_id=username,
-            session_id=f"server-{server_id}-channel-{channel_id}" if server_id else None,
+            session_id=f"server-{server_id}-channel-{channel_id}" if server_id and channel_id else None,
             metadata={
-                "type": "chat",
+                "server_id": server_id,
+                "channel_id": channel_id,
                 "has_images": bool(image_urls),
-                "image_count": len(image_urls) if image_urls else 0,
                 "is_function_followup": bool(function_result),
-                "history_length": len(conversation_history),
-                "memories_count": len(long_term_memories) if long_term_memories else 0,
-                "theme": current_settings.get("theme"),
-            }
-        )
-        # Log the input for easy debugging
-        langfuse_context.update_current_observation(
-            input={
-                "user_message": user_message,
-                "username": username,
-                "memories": long_term_memories,
             }
         )
     
