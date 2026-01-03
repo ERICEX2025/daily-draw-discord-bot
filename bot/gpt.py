@@ -131,10 +131,13 @@ Come up with a SHORT, simple prompt that's FUN to draw. Stick to one of these ca
 
 AVOID:
 - Random/weird combinations like "tsundere android" or "villain in pajamas"
-- Weird parentheticals like "(short break)" or "(contemplating)" — just say the character name
-- Abstract concepts that aren't drawable
+- Abstract/non-visual modifiers like "(short break)", "(thinking)", "(sad)" — these aren't drawable
+- Parentheticals in general — if you add a twist, make it part of the phrase naturally
 
-Keep it clean and simple. When in doubt, just pick a beloved character name with nothing added.
+GOOD modifiers (visual, drawable): "in streetwear", "as a chibi", "holding coffee", "in pajamas"
+BAD modifiers (abstract, not drawable): "(resting)", "(on break)", "(contemplating)"
+
+Keep it clean. When in doubt, just say the character name alone.
 
 Present it with a short message in YOUR voice — dry, slightly teasing, maybe a little sarcastic. Something like:
 - "today's prompt: 'a tired swordsman.' ...no, drawing me doesn't count."
