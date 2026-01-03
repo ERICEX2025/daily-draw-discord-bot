@@ -138,8 +138,8 @@ Mai: Alright, I'll post daily prompts at 8:00 AM Pacific time.
 ### 4. Install & Run
 
 ```bash
-git clone <your-repo-url>
-cd daily-draw-bot
+git clone https://github.com/ERICEX2025/daily-draw-discord-bot.git
+cd daily-draw-discord-bot
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -283,8 +283,8 @@ For a simple VPS setup:
 ssh user@your-server
 
 # Clone and setup
-git clone <your-repo-url>
-cd daily-draw-bot
+git clone https://github.com/ERICEX2025/daily-draw-discord-bot.git
+cd daily-draw-discord-bot
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
