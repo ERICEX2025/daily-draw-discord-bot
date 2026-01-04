@@ -1,10 +1,13 @@
 """
-bot/ — Mai-san Discord Bot Package
+bot/ — Mai-san Discord Bot
 
-This package contains all the bot logic:
-- personality.py: Mai's character, available functions
-- gpt.py: OpenAI API integration
-- database.py: SQLite storage layer
-- handlers.py: Function execution handlers
+Features:
+- chat/: Conversation AI + function execution
+- daily/: Prompt generation, scheduling, and posting
+
+Shared:
+- mai/: Mai's personality and tool definitions
+- memory/: Short-term + long-term memory
+- services/: External APIs (db, openai, langfuse, http, search)
+- config.py: All tunable settings
 """
-

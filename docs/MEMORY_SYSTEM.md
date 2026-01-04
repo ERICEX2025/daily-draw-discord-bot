@@ -2,7 +2,47 @@
 
 A visual guide to how Mai remembers things.
 
----
+## Chat Messages 
+┌─────────────────────────────────────────┐
+│ SYSTEM: You are Mai-san...              │  ← personality
+│                                         │
+│ Current settings:                       │
+│ - Theme: horror                         │  ← from database
+│ - Time: 9:00 AM EST                     │
+│                                         │
+│ Things you remember:                    │  ← LONG-TERM
+│ - Alice loves dragons                   │
+│ - Theme changed to horror               │
+├─────────────────────────────────────────┤
+│ Alice: what's today's prompt?           │  ← SHORT-TERM
+│ Mai: Today's prompt is...               │
+│ Bob: nice one!                          │
+│ Mai: Thanks~                            │
+├─────────────────────────────────────────┤
+│ Alice: can you give me a fantasy one?   │  ← CURRENT MESSAGE
+└─────────────────────────────────────────┘
+
+## Daily Prompt 
+┌─────────────────────────────────────────┐
+│ SYSTEM: You are Mai Sakurajima...       │  ← minimal personality
+│ (dry, deadpan, slightly teasing)        │    
+├─────────────────────────────────────────┤
+│ USER: Generate today's prompt.          │  ← CURRENT MESSAGE
+│ Theme: horror                           │  ← from database
+│                                         │
+│ Recent prompts (avoid repeating):       │  ← PAST PROMPTS 
+│ - 2026-01-03: Gojo in streetwear        │
+│ - 2026-01-02: cozy ramen shop           │
+│                                         │
+│ Things you remember:                    │  ← LONG-TERM 
+│ - Alice loves dragons                   │
+│                                         │
+│ Recent conversations:                   │  ← SHORT-TERM 
+│ - Bob: I'd love a Zelda prompt          │
+│ - Mai: noted~                           │
+│                                         │
+│ Respond with JSON: {prompt, message}    │
+└─────────────────────────────────────────┘
 
 ## Overview
 

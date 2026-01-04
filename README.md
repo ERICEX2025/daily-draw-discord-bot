@@ -1,155 +1,21 @@
 # Daily Draw Bot 🎨
 
-**Mai-san** — A GPT-5.2 powered Discord bot inspired by Sakurajima Mai from "Rascal Does Not Dream of Bunny Girl Senpai." She helps run your art channel with daily drawing prompts, remembers things about your community, and can even critique your artwork!
+**Mai-san** — A GPT-powered Discord bot that runs your art channel with daily drawing prompts, remembers your community, and critiques artwork.
 
-## Example Conversations
-
-```
-You: @Mai-san what's today's prompt?
-Mai: Today you're drawing "A cozy ramen shop on a rainy evening" 🍜
-     Don't slack off now.
-
-You: @Mai-san [uploads drawing] how did I do?
-Mai: *examines your work*
-     The composition is solid — you've captured the atmosphere well.
-     The lighting on the left side creates nice depth.
-     If I had to nitpick... the proportions could use some work.
-     But overall? 7/10. I expect improvement tomorrow. ✨
-```
-
-## Features
-
-### 💬 Pure Conversation
-
-Just @mention Mai-san and chat naturally — no commands to memorize.
-
-```
-You: @Mai-san hey, how are you?
-Mai: I'm doing fine, thanks for asking. Though I'd be doing better
-     if you were drawing instead of chatting... Just saying.
-```
-
-### 🎨 Daily Prompts
-
-Scheduled drawing prompts posted automatically at your preferred time, with customizable themes.
-
-```
-[9:00 AM in #art-prompts]
-Mai: Good morning, artists~ ✨
-     Today's prompt: "A forgotten library where books float in mid-air"
-     Let's see what you've got.
-```
-
-### 🖼️ Art Grading
-
-Upload your drawing and Mai-san will give detailed feedback using GPT-5.2 vision.
-
-```
-You: @Mai-san [attaches drawing] thoughts on this?
-Mai: *studies your work carefully*
-     Strengths: The color palette is cohesive and the mood is clear.
-     Your brushwork on the background creates nice depth.
-     Areas to improve: The foreground figure's proportions are off —
-     the head is slightly too large for the body.
-     Overall: 7.5/10. You're improving. Keep it up.
-```
-
-### 🧠 Long-Term Memory
-
-Mai-san remembers things about you and your server — preferences, fun facts, milestones.
-
-```
-You: @Mai-san I really love drawing dragons
-Mai: Noted! I'll remember that about you~ 🐉
-
-[A week later]
-You: @Mai-san what should I draw?
-Mai: Well, since you love dragons... how about a dragon
-     guarding a treasure hoard in a moonlit cave?
-```
-
-### 🎭 Customizable Themes
-
-Set the vibe for your prompts — fantasy, horror, sci-fi, slice of life, and more.
-
-```
-You: @Mai-san set the theme to cozy slice of life
-Mai: Got it! Switched to cozy slice of life~
-     Expect more warm, everyday moments in your prompts. ☕
-```
-
-### ⏸️ Pause & Resume
-
-Taking a break? Pause prompts for a few days.
-
-```
-You: @Mai-san pause prompts for a week
-Mai: Alright, daily prompts paused for 7 days.
-     Enjoy your break... but don't forget to draw! 🎨
-```
-
-### 📜 Prompt History
-
-Ask about past prompts anytime.
-
-```
-You: @Mai-san what did we draw on Monday?
-Mai: Monday's prompt was "A street musician playing for ghosts."
-     ...Did you actually draw it, or are you just asking? 👀
-```
-
-### ⏰ Flexible Scheduling
-
-Change the posting time and timezone through natural conversation.
-
-```
-You: @Mai-san can you post at 8am PST?
-Mai: Alright, I'll post daily prompts at 8:00 AM Pacific time.
-     Early bird gets the... better art skills? Something like that.
-```
-
-## Getting Started
-
-### 1. Create a Discord Bot
-
-1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
-2. Click **New Application** → name it → **Create**
-3. Go to **Bot** → **Add Bot**
-4. Enable **Message Content Intent** (required for @mentions)
-5. Click **Reset Token** → copy it (you'll need this)
-6. Go to **OAuth2** → **URL Generator**
-7. Select scopes: `bot`
-8. Select permissions: `Send Messages`, `Read Message History`, `Embed Links`
-9. Copy the URL → open it → invite bot to your server
-
-### 2. Get an OpenAI API Key
-
-1. Go to [platform.openai.com](https://platform.openai.com)
-2. Create an account or sign in
-3. Go to **API Keys** → **Create new secret key**
-4. Copy the key (you'll need this)
-
-### 3. Set Up Supabase
-
-1. Create a project at [supabase.com](https://supabase.com)
-2. Go to **SQL Editor** and run the contents of `supabase_schema.sql`
-3. Copy your project URL and anon key from **Settings → API**
-
-### 4. Install & Run
+## Quick Start
 
 ```bash
 git clone https://github.com/ERICEX2025/daily-draw-discord-bot.git
 cd daily-draw-discord-bot
-python3 -m venv .venv
-source .venv/bin/activate
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Create a `.env` file:
+Create `.env`:
 
 ```
-DISCORD_TOKEN=your_discord_token_here
-OPENAI_API_KEY=your_openai_key_here
+DISCORD_TOKEN=your_discord_token
+OPENAI_API_KEY=your_openai_key
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_KEY=your_supabase_anon_key
 ```
@@ -160,124 +26,103 @@ Run the bot:
 python main.py
 ```
 
-### 5. Configure Daily Prompts
-
-Once the bot is running, go to your Discord server and tell Mai-san where to post:
+Then in Discord:
 
 ```
 @Mai-san post daily prompts in #art-prompts
 ```
 
-That's it! Mai-san will now post a drawing prompt every day at 9:00 AM EST.
+---
 
-Optionally set a different time and timezone:
+## Features
 
-```
-@Mai-san post prompts at 10:00 AM PST
-```
+| Feature                  | Example                                                |
+| ------------------------ | ------------------------------------------------------ |
+| **Daily Prompts**        | Automatic drawing prompts at your preferred time       |
+| **Art Critique**         | Upload a drawing, get detailed feedback via GPT vision |
+| **Long-Term Memory**     | Remembers preferences, facts, and milestones           |
+| **Customizable Themes**  | Fantasy, horror, slice of life, etc.                   |
+| **Natural Conversation** | Just @mention and chat — no commands                   |
 
-## Capabilities
+---
 
-Just @mention Mai-san and talk naturally. Here's what she can do:
-
-| What you want      | Example                                       |
-| ------------------ | --------------------------------------------- |
-| Get today's prompt | "@Mai-san what should I draw today?"          |
-| Change schedule    | "@Mai-san post prompts at 10am PST"           |
-| Set prompt channel | "@Mai-san post daily prompts in #art-prompts" |
-| Set theme          | "@Mai-san set theme to dark fantasy"          |
-| View history       | "@Mai-san what did we draw last week?"        |
-| Get feedback       | "@Mai-san [attach image] how's my drawing?"   |
-| Pause prompts      | "@Mai-san pause for a week"                   |
-| Resume prompts     | "@Mai-san resume prompts"                     |
-
-Mai-san also remembers things automatically — your preferences, fun facts you share, and important events in the server.
-
-## How It Works
-
-1. **Message Handler** — When you @mention Mai-san, your message goes to GPT-5.2
-2. **Function Calling** — GPT-5.2 understands your intent and calls appropriate functions (set channel, set schedule, save memory, etc.)
-3. **Vision** — If you attach an image, GPT-5.2 can see and critique it
-4. **APScheduler** — Efficient cron-based scheduling that fires at the exact time instead of polling
-5. **Memory System** — Short-term (in-RAM conversation history) + long-term (Supabase) for persistent memories
-6. **Supabase** — All prompts, settings, and memories are stored in Supabase (PostgreSQL)
-
-See [MEMORY_SYSTEM.md](./MEMORY_SYSTEM.md) for a detailed breakdown of how Mai remembers things.
-
-## Project Structure
+## Architecture
 
 ```
-daily-draw-bot/
-├── main.py              # Bot entry, message handler, function executor
-├── bot/                 # All bot modules
-│   ├── config.py        # Centralized configuration constants
-│   ├── personality.py   # Mai's character & function definitions
-│   ├── gpt.py           # OpenAI integration (GPT-5.2)
-│   ├── database.py      # Supabase storage for prompts, settings, memories
-│   ├── handlers.py      # Function execution handlers
-│   ├── scheduler.py     # APScheduler-based daily prompt scheduling
-│   ├── memory.py        # Short-term memory helpers
-│   └── utils.py         # Image download & utilities
-├── assets/
-│   └── Mai-san.png      # Bot avatar
-├── supabase_schema.sql  # Database schema for Supabase setup
-└── requirements.txt     # Dependencies
+bot/
+├── config.py                    # All settings
+│
+├── chat/                        # Feature: Chat with Mai
+│   ├── executor.py              # Chat loop orchestration
+│   ├── generator.py             # GPT response generation
+│   └── handlers.py              # Function implementations
+│
+├── daily/                       # Feature: Daily prompts
+│   ├── executor.py              # Post flow orchestration
+│   ├── generator.py             # GPT prompt generation
+│   ├── scheduler.py             # APScheduler jobs
+│   └── daily_prompt.py          # Prompt templates
+│
+├── mai/                         # Mai's identity
+│   ├── prompt.py                # System prompt (personality)
+│   └── tools.py                 # Function definitions (schemas)
+│
+├── memory/                      # Memory systems
+│   ├── short_term.py            # In-memory conversation history
+│   └── long_term.py             # Supabase persistent memories
+│
+└── services/                    # External APIs
+    ├── db.py                    # Supabase client
+    ├── openai.py                # OpenAI client
+    ├── langfuse.py              # Observability
+    ├── search.py                # Web/image search
+    └── http.py                  # HTTP utilities
+
+main.py                          # Discord entry point
 ```
 
-## Deploying to Oracle Cloud
+**Flow:**
 
-Oracle Cloud's Always Free tier includes ARM-based VMs that are perfect for running Mai-san 24/7.
+1. User @mentions Mai → `main.py` handles the event
+2. `chat/executor.py` runs the chat loop (GPT + tools)
+3. `chat/generator.py` calls GPT with context
+4. If GPT requests tools → `chat/handlers.py` executes them
+5. Response sent back to Discord
 
-### 1. Create an Oracle Cloud Instance
+---
 
-1. Sign up at [cloud.oracle.com](https://cloud.oracle.com) (free tier available)
-2. Go to **Compute** → **Instances** → **Create Instance**
-3. Choose **Ampere A1** (ARM) — up to 4 OCPUs and 24GB RAM free
-4. Select **Oracle Linux** or **Ubuntu**
-5. Download your SSH key pair
-6. Create the instance
+## Setup Details
 
-### 2. Connect and Set Up
+### Discord Bot
+
+1. [Discord Developer Portal](https://discord.com/developers/applications) → New Application
+2. **Bot** → Add Bot → Enable **Message Content Intent**
+3. **OAuth2** → URL Generator → Scopes: `bot` → Permissions: `Send Messages`, `Read Message History`
+4. Copy invite URL → add bot to your server
+
+### Supabase
+
+1. Create project at [supabase.com](https://supabase.com)
+2. Run `supabase_schema.sql` in SQL Editor
+3. Copy URL and anon key from **Settings → API**
+
+### Optional: Langfuse (Observability)
+
+Add to `.env`:
+
+```
+LANGFUSE_PUBLIC_KEY=your_key
+LANGFUSE_SECRET_KEY=your_secret
+```
+
+---
+
+## Deployment
+
+For 24/7 uptime, deploy to Oracle Cloud (free tier) or any VPS:
 
 ```bash
-# SSH into your instance
-ssh -i ~/path/to/your-key.key opc@your-instance-ip
-
-# Install Python and git
-sudo dnf install python3 python3-pip git -y  # Oracle Linux
-# or: sudo apt install python3 python3-pip git -y  # Ubuntu
-
-# Clone the repo
-git clone https://github.com/ERICEX2025/daily-draw-discord-bot.git
-cd daily-draw-discord-bot
-
-# Set up virtual environment
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-### 3. Configure Environment
-
-```bash
-# Create .env file
-nano .env
-```
-
-Add your credentials:
-
-```
-DISCORD_TOKEN=your_discord_token
-OPENAI_API_KEY=your_openai_key
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your_supabase_anon_key
-```
-
-### 4. Run with systemd (Recommended)
-
-Create a systemd service for automatic restarts:
-
-```bash
+# Create systemd service
 sudo nano /etc/systemd/system/mai-san.service
 ```
 
@@ -288,32 +133,27 @@ After=network.target
 
 [Service]
 Type=simple
-User=opc
-WorkingDirectory=/home/opc/daily-draw-discord-bot
-Environment=PATH=/home/opc/daily-draw-discord-bot/.venv/bin
-ExecStart=/home/opc/daily-draw-discord-bot/.venv/bin/python main.py
+WorkingDirectory=/path/to/daily-draw-bot
+ExecStart=/path/to/daily-draw-bot/.venv/bin/python main.py
 Restart=always
-RestartSec=10
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-Enable and start:
-
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl enable mai-san
-sudo systemctl start mai-san
-
-# Check status
-sudo systemctl status mai-san
-
-# View logs
-sudo journalctl -u mai-san -f
+sudo systemctl enable mai-san && sudo systemctl start mai-san
 ```
 
-**Cost:** Free on Oracle Cloud Always Free tier
+---
+
+## Docs
+
+- [Memory System](./docs/MEMORY_SYSTEM.md) — How Mai remembers things
+- [Langfuse](./docs/LANGFUSE.md) — Observability setup
+- [Deployment](./docs/DEPLOYMENT.md) — Full deployment guide
+
+---
 
 ## License
 

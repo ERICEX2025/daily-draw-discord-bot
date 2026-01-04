@@ -1,54 +1,60 @@
 """
-config.py — Centralized Configuration
+bot/config.py — All Configuration
 
-All tunable constants in one place for easy editing.
+Tunable settings for the entire bot.
 """
 
 # =============================================================================
-# MODEL SETTINGS
+# MODEL
 # =============================================================================
 
-# OpenAI model to use for all requests
 MODEL = "gpt-5.2"
 
-# Max tokens for different response types
-MAX_PROMPT_TOKENS = 400      # Daily prompt generation
-MAX_CHAT_TOKENS = 500        # Regular conversation
-
 # =============================================================================
-# DAILY PROMPTS
+# CHAT RESPONSES
 # =============================================================================
 
-# How many past prompts to show GPT when generating new ones (to avoid repeats)
-RECENT_PROMPTS_FOR_GENERATION = 30
-
-# Context for personalized daily prompts
-DAILY_PROMPT_MEMORIES = 8         # Long-term memories to inject
-DAILY_PROMPT_RECENT_MESSAGES = 6  # Recent conversation messages to reference
+MAX_CHAT_TOKENS = 500                 # Max GPT tokens for chat responses
+MAX_FUNCTION_CHAIN_ITERATIONS = 10    # Max tool calls GPT can chain
 
 # =============================================================================
-# SHORT-TERM MEMORY (in-memory, per-server)
+# DAILY PROMPT GENERATION
 # =============================================================================
 
-# How many messages to keep in conversation history
-MAX_SHORT_TERM_MESSAGES = 20
-
-# Safety limit for function call chains (prevents infinite loops)
-MAX_FUNCTION_CHAIN_ITERATIONS = 10
+MAX_PROMPT_TOKENS = 400               # Max GPT tokens for prompt generation
+RECENT_PROMPTS_FOR_GENERATION = 30    # Past prompts shown (to avoid repeats)
 
 # =============================================================================
-# LONG-TERM MEMORY (Supabase)
+# SHORT-TERM MEMORY (RAM, lost on restart)
 # =============================================================================
+# Stores recent conversation history per server.
 
-# Memories injected into context for each message
-MEMORIES_FOR_CONTEXT = 12
+MAX_SHORT_TERM_MESSAGES = 20          # Max messages stored per server
+DAILY_PROMPT_RECENT_MESSAGES = 6      # How many used for daily prompt generation
 
-# User-specific memories to prioritize
-MEMORIES_USER_SPECIFIC = 5
+# Usage:
+#   - Chat: uses all 20
+#   - Daily Prompt: uses 6
 
-# Memories returned when Mai explicitly recalls
-MEMORIES_RECALL_LIMIT = 15
+# =============================================================================
+# LONG-TERM MEMORY (Supabase, persistent)
+# =============================================================================
+# Stores facts, preferences, and events permanently.
+# Sorted by: importance (desc), then recency (desc) as tiebreaker
+#
+# Example for chat (Alice sends a message):
+#   1. Fetch 12 server-wide memories (sorted by importance → recency)
+#   2. Fetch up to 5 memories about Alice specifically
+#   3. Put Alice's memories first, then fill with server-wide, cap at 12
+#   Result: [Alice's 3 memories] + [9 server-wide] = 12 total
 
-# Default limit for get_memories queries
-MEMORIES_DEFAULT_LIMIT = 20
+# For chat messages:
+MEMORIES_FOR_CONTEXT = 12             # Total memories shown to Mai per message
+MEMORIES_USER_SPECIFIC = 5            # Max user-specific memories to prioritize first
+
+# For daily prompts:
+DAILY_PROMPT_MEMORIES = 8             # Memories shown when generating daily prompt
+
+# For explicit recall tool:
+MEMORIES_RECALL_LIMIT = 15            # Max memories when Mai explicitly recalls
 
