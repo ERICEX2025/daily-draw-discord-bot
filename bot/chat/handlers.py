@@ -57,8 +57,7 @@ async def handle_set_schedule(server_id: str, args: dict, **_) -> str:
     await save_memory(
         server_id,
         f"Schedule changed to {time} ({tz_display})",
-        category="event",
-        importance=4
+        category="conversation"
     )
     
     return f"Daily prompt time set to {time} ({tz_display})"
@@ -98,10 +97,8 @@ async def handle_set_channel(server_id: str, args: dict, message: discord.Messag
             await save_memory(
                 server_id,
                 f"Daily prompts channel set to #{channel.name}",
-                category="event",
-                importance=5
+                category="conversation"
             )
-            
             return f"Daily prompts will now be posted to #{channel.name}"
         else:
             return f"Could not find channel '{raw_input}'"
@@ -113,14 +110,11 @@ async def handle_set_theme(server_id: str, args: dict, **_) -> str:
     """Set the theme for daily prompts."""
     theme = args["theme"]
     await db.update_settings(server_id, theme=theme)
-    
     await save_memory(
         server_id,
         f"Theme changed to: {theme}",
-        category="event",
-        importance=4
+        category="conversation"
     )
-    
     return f"Theme set to: {theme}"
 
 

@@ -143,27 +143,26 @@ async def _handle_mention(message: discord.Message):
         
         update_span(output=response_text or "[error: no response]")
         
-        # Send Mai's response
-        if response_text:
-            await message.reply(response_text)
-        else:
-            await message.reply("ah, something went wrong on my end... try again?")
+        # Download any pending images first (so we can send text + images together)
+        all_files = []
+        for img_data in pending_images:
+            urls = img_data.get("urls", [])
+            for i, url in enumerate(urls):
+                try:
+                    file = await download_image_as_file(url, f"reference_{i}.jpg")
+                    if file:
+                        all_files.append(file)
+                except Exception as e:
+                    print(f"Failed to download image: {e}")
         
-        # Send any reference images that tools queued up (e.g., from image search)
-            for img_data in pending_images:
-                urls = img_data.get("urls", [])
-                if urls:
-                    files = []
-                    for i, url in enumerate(urls):
-                        file = await download_image_as_file(url, f"reference_{i}.jpg")
-                        if file:
-                            files.append(file)
-                    
-                    if files:
-                        try:
-                            await message.channel.send(files=files)
-                        except Exception as e:
-                            print(f"Failed to send image attachments: {e}")
+        # Send Mai's response (with images if any)
+        try:
+            if response_text:
+                await message.reply(response_text, files=all_files if all_files else None)
+            else:
+                await message.reply("ah, something went wrong on my end... try again?")
+        except Exception as e:
+            print(f"Failed to send reply: {e}")
 
 
 # =============================================================================
