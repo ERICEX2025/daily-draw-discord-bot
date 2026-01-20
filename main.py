@@ -51,10 +51,19 @@ async def on_message(message: discord.Message):
     if message.author == bot.user:
         return
     
-    if bot.user not in message.mentions:
+    # Check if bot user is mentioned directly
+    if bot.user in message.mentions:
+        await _handle_mention(message)
         return
     
-    await _handle_mention(message)
+    # Check if bot's role is mentioned (people sometimes tag the role instead of the user)
+    if message.guild:
+        bot_member = message.guild.get_member(bot.user.id)
+        if bot_member:
+            for role in bot_member.roles:
+                if role in message.role_mentions:
+                    await _handle_mention(message)
+                    return
 
 
 @observe(name="handle_mention", capture_input=False, capture_output=False)
